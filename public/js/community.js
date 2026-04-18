@@ -33,7 +33,7 @@ async function loadVotes() {
     const pct = Math.min(100, (v.count / THRESHOLD) * 100);
     const isTrending = v.count >= THRESHOLD;
     return `
-      <div class="card" style="margin-bottom:0.75rem;padding:1rem;${isTrending ? 'border:2px solid var(--orange-accent)' : ''}">
+      <div class="card" style="margin-bottom:0.75rem;padding:1rem;${isTrending ? 'border:2px solid var(--orange)' : ''}">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
           <strong style="text-transform:capitalize;font-size:1.1rem">${v.item}</strong>
           <div style="display:flex;gap:0.5rem;align-items:center">
@@ -44,7 +44,7 @@ async function loadVotes() {
         <div class="progress-bar">
           <div class="progress-fill" style="width:${pct}%"></div>
         </div>
-        <div style="display:flex;justify-content:space-between;margin-top:0.35rem;font-size:0.8rem;color:var(--text-light)">
+        <div style="display:flex;justify-content:space-between;margin-top:0.35rem;font-size:0.8rem;color:var(--text-secondary)">
           <span>${v.count} vote${v.count !== 1 ? 's' : ''}</span>
           <span>${isTrending ? 'Bulk order threshold reached!' : `${THRESHOLD - v.count} more needed`}</span>
         </div>
@@ -86,9 +86,9 @@ async function loadMarketplace() {
     <div class="card" style="margin-bottom:0.75rem;padding:1rem">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <strong>${l.item}</strong>
-        <span style="font-weight:800;color:var(--green-primary)">$${l.price.toFixed(2)}</span>
+        <span style="font-weight:800;color:var(--accent)">$${l.price.toFixed(2)}</span>
       </div>
-      <p style="font-size:0.85rem;color:var(--text-light);margin-top:0.25rem">
+      <p style="font-size:0.85rem;color:var(--text-secondary);margin-top:0.25rem">
         ${l.store?.name || 'Store'} &mdash; ${l.qty} available &mdash; Expires ${new Date(l.expiry).toLocaleDateString()}
       </p>
     </div>

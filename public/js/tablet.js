@@ -57,7 +57,7 @@ async function loadInventory() {
       <thead><tr><th>Item</th><th>Stock</th><th>Price</th><th>Category</th></tr></thead>
       <tbody>
         ${currentStore.inventory.map(inv => `
-          <tr style="${inv.qty <= 3 ? 'background:#fde8e8' : ''}">
+          <tr style="${inv.qty <= 3 ? 'background:var(--red-dim)' : ''}">
             <td><strong>${inv.item}</strong></td>
             <td>${inv.qty} ${inv.qty <= 3 ? '<span class="badge badge-red">LOW</span>' : ''}</td>
             <td>$${inv.price.toFixed(2)}</td>
@@ -108,7 +108,7 @@ async function loadSalesHistory() {
       datasets: [{
         label: 'Units Sold',
         data: topItems.map(i => i.qty),
-        backgroundColor: '#2d6a4f',
+        backgroundColor: '#00d47b',
         borderRadius: 6
       }]
     },
@@ -128,7 +128,7 @@ async function loadSalesHistory() {
       labels: ['SNAP/EBT', 'Cash/Card'],
       datasets: [{
         data: [data.snapTransactions, data.totalTransactions - data.snapTransactions],
-        backgroundColor: ['#1565c0', '#e0e0e0'],
+        backgroundColor: ['#4da6ff', '#2a2a2a'],
         borderWidth: 0
       }]
     },

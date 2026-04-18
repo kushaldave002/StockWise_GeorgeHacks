@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DCCK Dashboard - StockWise</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@fontsource/cascadia-code@latest/index.css" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -36,11 +36,11 @@
     <!-- CHARTS -->
     <div class="two-col" style="margin-bottom:2rem">
       <div class="chart-container">
-        <h3 style="margin-bottom:1rem;color:var(--green-dark)">Sales by Store (This Week)</h3>
+        <h3 style="margin-bottom:1rem;color:var(--text)">Sales by Store (This Week)</h3>
         <canvas id="salesChart"></canvas>
       </div>
       <div class="chart-container">
-        <h3 style="margin-bottom:1rem;color:var(--green-dark)">SNAP vs Non-SNAP</h3>
+        <h3 style="margin-bottom:1rem;color:var(--text)">SNAP vs Non-SNAP</h3>
         <canvas id="snapChart"></canvas>
       </div>
     </div>
@@ -69,7 +69,7 @@
     <!-- DEMAND SIGNALS -->
     <div class="section">
       <h2 class="section-title">Demand Signals — What Communities Need</h2>
-      <p style="color:var(--text-light);margin-bottom:1rem">Items with high demand scores should be prioritized for next DCCK delivery.</p>
+      <p style="color:var(--text-secondary);margin-bottom:1rem">Items with high demand scores should be prioritized for next DCCK delivery.</p>
       <div id="demandSignals" class="card-grid"></div>
     </div>
   </div>
