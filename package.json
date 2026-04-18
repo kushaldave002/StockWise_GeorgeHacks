@@ -1,0 +1,21 @@
+{
+  "name": "stockwise",
+  "version": "1.0.0",
+  "description": "Connecting DC communities to fresh food through corner stores",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "seed": "node seed.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "mongodb-memory-server": "^10.4.0",
+    "mongoose": "^8.13.2"
+  }
+}
