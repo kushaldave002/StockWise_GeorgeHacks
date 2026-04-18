@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DCCK Dashboard - StockWise</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/" class="nav-logo">Stock<span>Wise</span></a>
+    <div class="nav-links">
+      <a href="/customer">Find Food</a>
+      <a href="/tablet">Store Tablet</a>
+      <a href="/dashboard" class="active">DCCK Dashboard</a>
+      <a href="/community">Community Board</a>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h1>DCCK Dashboard</h1>
+      <p>Real-time view of corner store activity, demand signals, and SNAP utilization across DC.</p>
+    </div>
+
+    <!-- SUMMARY STATS -->
+    <div class="stat-grid" id="statGrid">
+      <div class="stat-card"><div class="spinner"></div></div>
+      <div class="stat-card"><div class="spinner"></div></div>
+      <div class="stat-card"><div class="spinner"></div></div>
+      <div class="stat-card"><div class="spinner"></div></div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="two-col" style="margin-bottom:2rem">
+      <div class="chart-container">
+        <h3 style="margin-bottom:1rem;color:var(--green-dark)">Sales by Store (This Week)</h3>
+        <canvas id="salesChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3 style="margin-bottom:1rem;color:var(--green-dark)">SNAP vs Non-SNAP</h3>
+        <canvas id="snapChart"></canvas>
+      </div>
+    </div>
+
+    <!-- STORE BREAKDOWN -->
+    <div class="section">
+      <h2 class="section-title">Store Breakdown</h2>
+      <div class="card" style="overflow-x:auto">
+        <table id="storeTable">
+          <thead>
+            <tr><th>Store</th><th>Ward</th><th>Sales (7d)</th><th>Revenue</th><th>SNAP %</th><th>Status</th></tr>
+          </thead>
+          <tbody id="storeTableBody">
+            <tr><td colspan="6" class="loading"><span class="spinner"></span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TOP ITEMS -->
+    <div class="section">
+      <h2 class="section-title">Top Selling Items</h2>
+      <div id="topItems" class="card-grid"></div>
+    </div>
+
+    <!-- DEMAND SIGNALS -->
+    <div class="section">
+      <h2 class="section-title">Demand Signals — What Communities Need</h2>
+      <p style="color:var(--text-light);margin-bottom:1rem">Items with high demand scores should be prioritized for next DCCK delivery.</p>
+      <div id="demandSignals" class="card-grid"></div>
+    </div>
+  </div>
+
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>
