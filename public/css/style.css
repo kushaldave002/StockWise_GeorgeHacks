@@ -623,13 +623,32 @@ tr:hover { background: var(--surface-2); }
   font-size: 0.9rem;
 }
 .cart-item-name { flex: 1; font-weight: 600; }
-.cart-item-health {
-  font-size: 0.75rem;
-  padding: 0.15rem 0.4rem;
-  border-radius: 4px;
+.health-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border: 1px solid transparent;
+  white-space: nowrap;
 }
-.cart-item-health.healthy { background: var(--accent-glow); color: var(--accent); }
-.cart-item-health.unhealthy { background: var(--red-dim); color: var(--red); }
+.health-badge.compact {
+  font-size: 0.68rem;
+  padding: 0.22rem 0.48rem;
+}
+.health-badge.healthy {
+  background: rgba(0, 212, 123, 0.14);
+  color: #7ef0b7;
+  border-color: rgba(0, 212, 123, 0.35);
+}
+.health-badge.unhealthy {
+  background: rgba(255, 159, 67, 0.14);
+  color: #ffbd7c;
+  border-color: rgba(255, 159, 67, 0.35);
+}
 .cart-item-qty {
   display: flex;
   align-items: center;
