@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>StockWise Assistant - AI Chat</title>
+  <link href="https://cdn.jsdelivr.net/npm/@fontsource/cascadia-code@latest/index.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/auth.js?v=4"></script>
+  <style>
+    body { display: flex; flex-direction: column; min-height: 100vh; }
+
+    .chat-container {
+      flex: 1; display: flex; flex-direction: column;
+      max-width: 800px; width: 100%; margin: 0 auto;
+      padding: 0 1rem;
+    }
+
+    .chat-header {
+      padding: 1.25rem 0; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 1rem;
+    }
+    .chat-header-left { display: flex; align-items: center; gap: 0.75rem; }
+    .chat-avatar {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: var(--accent-glow); color: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 16px;
+    }
+    .chat-title { font-size: 1.1rem; font-weight: 700; color: var(--text); }
+    .chat-subtitle { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+
+    .role-toggle { display: flex; gap: 0.5rem; }
+    .role-btn {
+      font-family: var(--font); font-size: 0.75rem; padding: 0.4rem 1rem;
+      border: 1px solid var(--border); border-radius: 20px;
+      cursor: pointer; background: transparent; color: var(--text-secondary);
+      transition: all 0.2s; font-weight: 500;
+    }
+    .role-btn:hover { border-color: var(--border-hover); color: var(--text); }
+    .role-btn.active { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); }
+
+    .store-selector {
+      display: none; padding: 0.75rem 0; gap: 0.5rem; flex-wrap: wrap;
+      border-bottom: 1px solid var(--border);
+    }
+    .store-selector.visible { display: flex; }
+    .store-selector-label { font-size: 0.7rem; color: var(--text-muted); align-self: center; }
+    .store-chip {
+      font-family: var(--font); font-size: 0.7rem; padding: 0.3rem 0.75rem;
+      border: 1px solid var(--border); border-radius: 20px;
+      cursor: pointer; background: transparent; color: var(--text-secondary);
+      transition: all 0.2s;
+    }
+    .store-chip:hover { border-color: var(--border-hover); }
+    .store-chip.active { background: var(--accent); color: var(--primary); border-color: var(--accent); font-weight: 600; }
+
+    .alert-banner {
+      display: none; margin: 0.75rem 0;
+      background: var(--orange-dim); border: 1px solid var(--orange);
+      border-radius: var(--radius); padding: 0.75rem 1rem;
+      font-size: 0.8rem; color: var(--orange); cursor: pointer;
+    }
+    .alert-banner.visible { display: block; }
+    .alert-banner-title { font-weight: 700; margin-bottom: 0.25rem; }
+
+    .messages {
+      flex: 1; overflow-y: auto; padding: 1rem 0;
+      display: flex; flex-direction: column; gap: 1rem;
+    }
+    .msg { display: flex; gap: 0.75rem; max-width: 90%; animation: fadeIn 0.2s ease; }
+    .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .bubble {
+      padding: 0.85rem 1.1rem; border-radius: 14px;
+      font-size: 0.85rem; line-height: 1.7;
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .msg.bot .bubble { background: var(--surface-2); color: var(--text); border-bottom-left-radius: 4px; }
+    .msg.user .bubble { background: var(--accent); color: var(--primary); border-bottom-right-radius: 4px; font-weight: 500; }
+
+    .msg .msg-icon {
+      width: 32px; height: 32px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 800; flex-shrink: 0; margin-top: 2px;
+    }
+    .msg.bot .msg-icon { background: var(--accent-glow); color: var(--accent); }
+    .msg.user .msg-icon { background: var(--surface-3); color: var(--text-secondary); }
+
+    .order-card {
+      background: var(--accent-glow); border: 1px solid var(--accent-dim);
+      border-radius: var(--radius); padding: 0.85rem 1rem;
+      font-size: 0.8rem; color: var(--accent); margin-top: 0.5rem;
+      margin-left: 2.75rem;
+    }
+    .order-card .order-title { font-weight: 700; margin-bottom: 0.35rem; font-size: 0.85rem; }
+
+    .typing-wrap { display: flex; gap: 0.75rem; }
+    .typing {
+      display: flex; gap: 5px; align-items: center;
+      padding: 0.85rem 1.1rem; background: var(--surface-2);
+      border-radius: 14px; border-bottom-left-radius: 4px;
+    }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); animation: blink 1.2s infinite; }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
+
+    .suggestions { display: flex; gap: 0.5rem; padding: 0.5rem 0; flex-wrap: wrap; }
+    .chip {
+      font-family: var(--font); font-size: 0.7rem; padding: 0.4rem 0.85rem;
+      border: 1px solid var(--border); border-radius: 20px;
+      cursor: pointer; background: transparent; color: var(--text-secondary);
+      white-space: nowrap; transition: all 0.2s;
+    }
+    .chip:hover { background: var(--surface-2); border-color: var(--border-hover); color: var(--text); }
+
+    .input-row {
+      display: flex; gap: 0.75rem; padding: 1rem 0;
+      border-top: 1px solid var(--border); align-items: center;
+    }
+    .chat-input {
+      flex: 1; font-family: var(--font); font-size: 0.85rem; padding: 0.75rem 1.25rem;
+      border: 1px solid var(--border); border-radius: 24px;
+      outline: none; background: var(--surface-2); color: var(--text);
+      transition: border 0.2s;
+    }
+    .chat-input::placeholder { color: var(--text-muted); }
+    .chat-input:focus { border-color: var(--accent); }
+    .send-btn {
+      width: 44px; height: 44px; border-radius: 50%;
+      border: none; background: var(--accent); color: var(--primary);
+      cursor: pointer; font-size: 18px; display: flex;
+      align-items: center; justify-content: center;
+      transition: all 0.2s; flex-shrink: 0; font-weight: 700;
+    }
+    .send-btn:hover { background: var(--accent-dim); }
+    .send-btn:disabled { background: var(--surface-3); color: var(--text-muted); cursor: not-allowed; }
+
+    .action-buttons {
+      display: flex; gap: 0.5rem; flex-wrap: wrap;
+      margin-top: 0.5rem; margin-left: 2.75rem;
+    }
+    .action-btn {
+      font-family: var(--font); font-size: 0.75rem; padding: 0.5rem 1rem;
+      border: 1px solid var(--accent); border-radius: 8px;
+      cursor: pointer; background: var(--accent-glow); color: var(--accent);
+      transition: all 0.2s; font-weight: 600;
+    }
+    .action-btn:hover { background: var(--accent); color: var(--primary); }
+
+    .fulfillment-card {
+      margin-top: 0.5rem; margin-left: 2.75rem;
+      border-radius: var(--radius); padding: 0.75rem 1rem;
+      font-size: 0.8rem;
+    }
+    .fulfillment-card.pickup { background: var(--accent-glow); border: 1px solid var(--accent); color: var(--accent); }
+    .fulfillment-card.transfer { background: var(--orange-dim); border: 1px solid var(--orange); color: var(--orange); }
+    .fulfillment-card.dcck { background: var(--blue-dim); border: 1px solid var(--blue); color: var(--blue); }
+    .fulfillment-tag {
+      display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px;
+      font-size: 0.7rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.35rem;
+    }
+    .fulfillment-card.pickup .fulfillment-tag { background: var(--accent); color: var(--primary); }
+    .fulfillment-card.transfer .fulfillment-tag { background: var(--orange); color: var(--primary); }
+    .fulfillment-card.dcck .fulfillment-tag { background: var(--blue); color: var(--primary); }
+
+    .chat-footer {
+      text-align: center; font-size: 0.65rem; color: var(--text-muted);
+      padding: 0.5rem 0 1rem;
+    }
+
+    .messages::-webkit-scrollbar { width: 4px; }
+    .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .messages::-webkit-scrollbar-track { background: transparent; }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/" class="nav-logo">Stock<span>Wise</span></a>
+    <div class="nav-links">
+      <a href="/chatbot" class="active">AI Assistant</a>
+    </div>
+  </nav>
+
+  <div class="chat-container">
+    <div class="chat-header">
+      <div class="chat-header-left">
+        <div class="chat-avatar">SW</div>
+        <div>
+          <div class="chat-title">StockWise Assistant</div>
+          <div class="chat-subtitle" id="role-label">Customer mode -- Powered by Gemini AI</div>
+        </div>
+      </div>
+      <div class="role-toggle" id="role-badge"></div>
+    </div>
+
+    <div class="store-selector" id="store-selector">
+      <span class="store-selector-label">Your store:</span>
+      <span id="store-chips"></span>
+    </div>
+
+    <div class="alert-banner" id="alert-banner" onclick="handleAlertClick()">
+      <div class="alert-banner-title">Low stock alert</div>
+      <div id="alert-text"></div>
+    </div>
+
+    <div class="messages" id="messages"></div>
+    <div class="suggestions" id="suggestions"></div>
+
+    <div class="input-row">
+      <input type="text" class="chat-input" id="user-input" placeholder="Ask about products, prices, availability..." onkeydown="if(event.key==='Enter')sendMsg()"/>
+      <button class="send-btn" id="send-btn" onclick="sendMsg()">&#9654;</button>
+    </div>
+    <div class="chat-footer">StockWise -- Powered by Gemini AI</div>
+  </div>
+
+<script>
+  // Auth guard — any logged-in user
+  const _chatUser = SW_Auth.requireAuth();
+  if (!_chatUser) throw new Error('redirect');
+  SW_Auth.injectNav('chatbot');
+
+  // Role is fixed from JWT — no manual toggle
+  const currentRole = _chatUser.role;
+  let currentStoreId = _chatUser.storeId || null;
+  let storesLoaded = [];
+  let chatHistory = [];
+
+  // Show role badge
+  const roleColor = currentRole === 'owner' ? 'var(--orange)' : 'var(--accent)';
+  const roleLabel = currentRole === 'owner' ? 'Store Owner Mode' : 'Customer Mode';
+  document.getElementById('role-badge').innerHTML =
+    `<span style="font-size:0.75rem;padding:0.35rem 0.9rem;border:1px solid ${roleColor};border-radius:20px;color:${roleColor};font-weight:600">${roleLabel}</span>`;
+
+  document.getElementById('role-label').textContent =
+    currentRole === 'customer' ? 'Customer mode -- Powered by Gemini AI' : 'Store owner mode -- Powered by Gemini AI';
+
+  const suggestionSets = {
+    customer: [
+      "Is milk available nearby?",
+      "Where can I find bananas?",
+      "What produce is in Ward 8?",
+      "Do any stores have eggs?"
+    ],
+    owner: [
+      "What are my top sellers this week?",
+      "Which products are running low?",
+      "Show me sales trends",
+      "What are customers requesting?"
+    ]
+  };
+
+  function renderSuggestions() {
+    document.getElementById('suggestions').innerHTML =
+      suggestionSets[currentRole].map(s =>
+        `<button class="chip" onclick="quickSend('${s}')">${s}</button>`
+      ).join('');
+  }
+
+  async function checkLowStock(storeId) {
+    if (!storeId || currentRole !== 'owner') return;
+    try {
+      const res = await SW_Auth.authFetch(`/api/lowstock/${storeId}`);
+      const alerts = await res.json();
+      const banner = document.getElementById('alert-banner');
+      if (alerts.length > 0) {
+        const outOfStock = alerts.filter(a => a.qty === 0);
+        const low = alerts.filter(a => a.qty > 0);
+        let text = '';
+        if (outOfStock.length) text += `Out of stock: ${outOfStock.map(a=>a.product).join(', ')}. `;
+        if (low.length) text += `Low: ${low.map(a=>`${a.product}(${a.qty})`).join(', ')}.`;
+        document.getElementById('alert-text').textContent = text + ' Click to reorder.';
+        banner.classList.add('visible');
+      } else {
+        banner.classList.remove('visible');
+      }
+    } catch(e) {}
+  }
+
+  function handleAlertClick() {
+    quickSend('Which products are running low and should I reorder them?');
+  }
+
+  function appendMsg(role, text, extra) {
+    const msgs = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = `msg ${role}`;
+
+    const userInitials = _chatUser.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    let content = `<div class="bubble">${text.replace(/\n/g,'<br>')}</div>`;
+
+    if (extra && extra.order) {
+      const o = extra.order;
+      content += `
+        <div class="order-card">
+          <div class="order-title">Order Confirmed</div>
+          Order ID: ${o.orderId}<br>
+          Product: ${o.product}<br>
+          Quantity: ${o.quantity} units<br>
+          Store: ${o.storeName}<br>
+          Total: $${o.totalCost.toFixed(2)}<br>
+          Status: ${o.status}
+        </div>`;
+    }
+
+    if (extra && extra.fulfillment) {
+      const f = extra.fulfillment;
+      const labels = { pickup: 'Ready for Pickup', transfer: 'Cross-Ward Transfer', dcck: 'DCCK Delivery' };
+      content += `<div class="fulfillment-card ${f}"><span class="fulfillment-tag">${labels[f] || f}</span><br>Order #${extra.request?.id || ''}</div>`;
+    }
+
+    div.innerHTML = `<div class="msg-icon">${role === 'bot' ? 'SW' : userInitials}</div>${content}`;
+    msgs.appendChild(div);
+
+    if (extra && extra.actions && extra.actions.length > 0) {
+      const btnDiv = document.createElement('div');
+      btnDiv.className = 'action-buttons';
+      extra.actions.forEach(a => {
+        const btn = document.createElement('button');
+        btn.className = 'action-btn';
+        btn.textContent = a.label;
+        btn.onclick = () => { btnDiv.remove(); quickSend(a.action); };
+        btnDiv.appendChild(btn);
+      });
+      msgs.appendChild(btnDiv);
+    }
+
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function showTyping() {
+    const msgs = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.id = 'typing-indicator'; div.className = 'typing-wrap';
+    div.innerHTML = `
+      <div class="msg-icon" style="background:var(--accent-glow);color:var(--accent);width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:800;flex-shrink:0;margin-top:2px;">SW</div>
+      <div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function removeTyping() { document.getElementById('typing-indicator')?.remove(); }
+
+  function quickSend(text) {
+    document.getElementById('user-input').value = text;
+    sendMsg();
+  }
+
+  async function sendMsg() {
+    const input = document.getElementById('user-input');
+    const btn = document.getElementById('send-btn');
+    const text = input.value.trim();
+    if (!text) return;
+
+    appendMsg('user', text);
+    chatHistory.push({ role: 'user', text });
+    input.value = '';
+    btn.disabled = true;
+    showTyping();
+
+    try {
+      const res = await SW_Auth.authFetch('/api/chat', {
+        method: 'POST',
+        body: { message: text, history: chatHistory }
+      });
+      const data = await res.json();
+      removeTyping();
+
+      if (data.error) {
+        appendMsg('bot', 'Error: ' + data.error);
+      } else {
+        const extra = {};
+        if (data.order) extra.order = data.order;
+        if (data.fulfillment) extra.fulfillment = data.fulfillment;
+        if (data.request) extra.request = data.request;
+        if (data.actions) extra.actions = data.actions;
+
+        appendMsg('bot', data.reply, Object.keys(extra).length > 0 ? extra : null);
+        chatHistory.push({ role: 'model', text: data.reply });
+        if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
+
+        if (currentRole === 'owner' && data.order) checkLowStock(currentStoreId);
+      }
+    } catch (err) {
+      removeTyping();
+      appendMsg('bot', 'Could not reach the server. Please make sure the backend is running.');
+    }
+
+    btn.disabled = false;
+    input.focus();
+  }
+
+  async function loadStores() {
+    try {
+      const res = await fetch('/api/stores');
+      storesLoaded = await res.json();
+      const storeSelector = document.getElementById('store-selector');
+      const storeChips = document.getElementById('store-chips');
+
+      if (currentRole === 'owner') {
+        // Use the store linked to this owner's account from JWT
+        const ownerStore = _chatUser.storeId
+          ? storesLoaded.find(s => s._id === _chatUser.storeId)
+          : storesLoaded[0];
+        currentStoreId = ownerStore?._id || null;
+
+        if (ownerStore) {
+          storeSelector.classList.add('visible');
+          storeChips.innerHTML =
+            `<span class="store-chip active" style="cursor:default">${ownerStore.name} &mdash; Ward ${ownerStore.ward}</span>`;
+          checkLowStock(currentStoreId);
+        }
+        appendMsg('bot', `Welcome back, ${_chatUser.name}! I'm connected to your live inventory and sales data.\n\nI can help you with:\n- Sales trends and 7-day history\n- Low stock alerts and restock recommendations\n- Placing orders directly from chat\n- Community demand insights\n\nAsk me anything about your store.`);
+      } else {
+        storeSelector.classList.remove('visible');
+        appendMsg('bot', `Hi ${_chatUser.name}! I'm the StockWise Assistant.\n\nI can help you find fresh food across DC corner stores:\n- Check product availability and prices\n- Find which stores carry what you need\n- Get suggestions for alternatives\n- Check store locations by ward\n\nWhat are you looking for?`);
+      }
+    } catch (e) {
+      document.getElementById('store-chips').innerHTML = '<span style="color:var(--red);font-size:0.7rem">Could not load store info</span>';
+    }
+    renderSuggestions();
+  }
+
+  loadStores();
+</script>
+</body>
+</html>

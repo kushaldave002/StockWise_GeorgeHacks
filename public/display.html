@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Store Display - StockWise</title>
+  <link href="https://cdn.jsdelivr.net/npm/@fontsource/cascadia-code@latest/index.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="snap-banner">SNAP/EBT Accepted Here -- Fresh Produce Available Daily</div>
+
+  <div class="display-board">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem">
+      <div>
+        <h1 id="storeName">Loading...</h1>
+        <div class="date" id="storeDate"></div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:0.75rem;color:var(--text-muted)">Powered by</div>
+        <div style="font-size:1.1rem;font-weight:700">Stock<span style="color:var(--accent)">Wise</span></div>
+      </div>
+    </div>
+
+    <div class="display-grid" id="displayGrid">
+      <div class="loading"><span class="spinner"></span></div>
+    </div>
+
+    <div style="margin-top:2rem;text-align:center;color:var(--text-muted);font-size:0.75rem">
+      Auto-refreshes every 60 seconds &mdash; Prices subject to change
+    </div>
+  </div>
+
+  <script src="/js/display.js"></script>
+</body>
+</html>

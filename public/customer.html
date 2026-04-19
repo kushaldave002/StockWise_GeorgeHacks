@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Find Food - StockWise</title>
+  <link href="https://cdn.jsdelivr.net/npm/@fontsource/cascadia-code@latest/index.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/auth.js?v=4"></script>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/" class="nav-logo">Stock<span>Wise</span></a>
+    <div class="nav-links">
+      <a href="/customer" class="active">Find Food</a>
+      <a href="/community">Community</a>
+      <a href="/chatbot">AI Assistant</a>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h1>Find Fresh Food Near You</h1>
+      <p>Search what's available at corner stores in your ward, or request what you need.</p>
+    </div>
+
+    <!-- SEARCH -->
+    <div class="section">
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="What are you looking for? (e.g., yuca, plantains, mangoes...)">
+      </div>
+      <div style="display:flex;gap:0.75rem;margin-bottom:1.5rem;flex-wrap:wrap">
+        <select id="wardFilter" style="width:auto;min-width:150px">
+          <option value="">All Wards</option>
+          <option value="5">Ward 5</option>
+          <option value="7">Ward 7</option>
+          <option value="8">Ward 8</option>
+        </select>
+        <button class="btn btn-primary" onclick="doSearch()">Search</button>
+        <button class="btn btn-secondary" onclick="clearSearch()">Browse All</button>
+      </div>
+      <div id="searchResults"></div>
+    </div>
+
+    <!-- BROWSE TABS (shown when not searching) -->
+    <div class="section" id="browseSection">
+      <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;border-bottom:1px solid var(--border);padding-bottom:0.75rem">
+        <button class="btn btn-primary" id="tabItems" onclick="switchTab('items')">Browse by Item</button>
+        <button class="btn btn-secondary" id="tabStores" onclick="switchTab('stores')">Browse by Store</button>
+      </div>
+      <div id="browseItems"></div>
+      <div id="browseStores" style="display:none"></div>
+    </div>
+
+    <!-- REQUEST FORM -->
+    <div class="section">
+      <h2 class="section-title">Can't Find What You Need?</h2>
+      <div class="card" style="max-width:500px">
+        <form id="requestForm">
+          <div class="form-group" style="display:none">
+            <input type="text" id="reqName">
+          </div>
+          <div class="form-group">
+            <label>What do you need?</label>
+            <input type="text" id="reqItem" placeholder="e.g., Yuca, Fresh Greens" required>
+          </div>
+          <div class="form-group">
+            <label>Your Ward</label>
+            <select id="reqWard" required>
+              <option value="">Select ward</option>
+              <option value="5">Ward 5</option>
+              <option value="7">Ward 7</option>
+              <option value="8">Ward 8</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-accent btn-block">Request This Item</button>
+        </form>
+        <div id="requestResult" style="margin-top:1rem"></div>
+      </div>
+    </div>
+
+    <!-- RECENT REQUESTS -->
+    <div class="section">
+      <h2 class="section-title">What Others Are Looking For</h2>
+      <div id="recentRequests" class="card-grid"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Cart overlay (closes cart on outside click) -->
+  <div class="cart-overlay" id="cartOverlay" onclick="closeCart()"></div>
+
+  <!-- Cart FAB button -->
+  <button class="cart-fab" id="cartFab" onclick="openCart()" style="display:none">
+    Cart <span class="cart-count" id="cartCount">0</span>
+  </button>
+
+  <!-- Cart Panel -->
+  <div class="cart-panel" id="cartPanel">
+    <div class="cart-header">
+      <h3>Your Cart</h3>
+      <button class="cart-close" onclick="closeCart()">&#x2715;</button>
+    </div>
+
+    <div class="cart-items" id="cartItems">
+      <p style="color:var(--text-secondary);font-size:0.9rem;text-align:center;margin-top:2rem">Cart is empty.<br>Add items from Browse or Search.</p>
+    </div>
+
+    <div class="cart-footer">
+      <!-- Health bar -->
+      <div class="health-bar-wrap" id="healthBarWrap" style="display:none">
+        <div class="health-bar-label">
+          <span id="healthPctLabel">0% healthy</span>
+          <span style="color:var(--text-secondary)">Need 70% for discount</span>
+        </div>
+        <div class="health-bar">
+          <div class="health-bar-fill" id="healthBarFill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- Discount badge -->
+      <div class="discount-badge" id="discountBadge">
+        <strong>5% Discount Earned!</strong> Your cart is 70%+ healthy foods.
+      </div>
+
+      <!-- Totals -->
+      <div class="cart-totals" id="cartTotals" style="display:none">
+        <div class="row"><span>Subtotal</span><span id="subtotalVal">$0.00</span></div>
+        <div class="row discount-row" id="discountRow" style="display:none">
+          <span>Healthy discount (5%)</span><span id="discountVal">-$0.00</span>
+        </div>
+        <div class="row total"><span>Total</span><span id="totalVal">$0.00</span></div>
+      </div>
+
+      <button class="btn-clear-cart" onclick="clearCart()">Clear Cart</button>
+    </div>
+  </div>
+
+  <script src="/js/customer.js"></script>
+</body>
+</html>

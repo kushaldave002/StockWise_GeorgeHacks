@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Community Board - StockWise</title>
+  <link href="https://cdn.jsdelivr.net/npm/@fontsource/cascadia-code@latest/index.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/auth.js?v=4"></script>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/" class="nav-logo">Stock<span>Wise</span></a>
+    <div class="nav-links">
+      <a href="/community" class="active">Community</a>
+      <a href="/chatbot">AI Assistant</a>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h1>Community Board</h1>
+      <p>Vote for what you want your corner store to stock. When enough people vote, DCCK delivers it.</p>
+    </div>
+
+    <!-- WARD FILTER -->
+    <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
+      <button class="btn btn-primary ward-btn" data-ward="" onclick="setWard('')">All Wards</button>
+      <button class="btn btn-secondary ward-btn" data-ward="5" onclick="setWard('5')">Ward 5</button>
+      <button class="btn btn-secondary ward-btn" data-ward="7" onclick="setWard('7')">Ward 7</button>
+      <button class="btn btn-secondary ward-btn" data-ward="8" onclick="setWard('8')">Ward 8</button>
+    </div>
+
+    <div class="two-col">
+      <!-- VOTE RESULTS -->
+      <div>
+        <div class="section">
+          <h2 class="section-title">What Your Neighborhood Wants</h2>
+          <div id="voteList"></div>
+        </div>
+      </div>
+
+      <!-- VOTE FORM + MARKETPLACE -->
+      <div>
+        <div class="section">
+          <h2 class="section-title">Cast Your Vote</h2>
+          <div class="card">
+            <form id="voteForm">
+              <div class="form-group">
+                <label>What should stores stock?</label>
+                <input type="text" id="voteItem" placeholder="e.g., Fresh Greens, Plantains, Halal Meat" required>
+              </div>
+              <div class="form-group" style="display:none">
+                <input type="text" id="voterName">
+              </div>
+              <div class="form-group">
+                <label>Your Ward</label>
+                <select id="voteWard" required>
+                  <option value="">Select ward</option>
+                  <option value="5">Ward 5</option>
+                  <option value="7">Ward 7</option>
+                  <option value="8">Ward 8</option>
+                </select>
+              </div>
+              <button type="submit" class="btn btn-primary btn-block">Vote</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2 class="section-title">Marketplace — Discounted Stock</h2>
+          <p style="color:var(--text-secondary);margin-bottom:1rem;font-size:0.9rem">Stores with excess stock near expiry — grab a deal!</p>
+          <div id="marketplace"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script src="/js/community.js"></script>
+</body>
+</html>
