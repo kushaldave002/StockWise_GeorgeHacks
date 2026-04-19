@@ -1,3 +1,8 @@
+// Auth guard — owner only
+const _currentUser = SW_Auth.requireAuth('owner');
+if (!_currentUser) throw new Error('redirect');
+SW_Auth.injectNav('tablet');
+
 const API = '';
 let currentStore = null;
 let topItemsChart = null;
@@ -15,7 +20,7 @@ function adjustQty(delta) {
   input.value = Math.max(1, Number(input.value) + delta);
 }
 
-// Load stores
+// Load stores — auto-select the owner's linked store
 async function loadStores() {
   const res = await fetch(`${API}/api/stores`);
   const stores = await res.json();
@@ -26,6 +31,11 @@ async function loadStores() {
     opt.textContent = `${s.name} (Ward ${s.ward})`;
     select.appendChild(opt);
   });
+  // Auto-select the owner's store from JWT
+  if (_currentUser.storeId) {
+    select.value = _currentUser.storeId;
+    onStoreChange();
+  }
 }
 
 function onStoreChange() {
@@ -72,7 +82,7 @@ async function loadSalesHistory() {
   const storeId = document.getElementById('storeSelect').value;
   if (!storeId) return;
 
-  const res = await fetch(`${API}/api/sales/${storeId}?days=14`);
+  const res = await SW_Auth.authFetch(`${API}/api/sales/${storeId}?days=14`);
   const data = await res.json();
 
   document.getElementById('salesHistorySection').style.display = 'block';
@@ -167,10 +177,9 @@ document.getElementById('saleForm').addEventListener('submit', async e => {
     customerName: document.getElementById('saleCustName').value || undefined
   };
 
-  await fetch(`${API}/api/sales`, {
+  await SW_Auth.authFetch(`${API}/api/sales`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+    body: body
   });
 
   showToast(`Sale recorded: ${body.qty}x ${body.item}${body.isSnap ? ' (SNAP)' : ''}`);
@@ -195,10 +204,9 @@ document.getElementById('listingForm').addEventListener('submit', async e => {
     expiry: document.getElementById('listExpiry').value
   };
 
-  await fetch(`${API}/api/listings`, {
+  await SW_Auth.authFetch(`${API}/api/listings`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+    body: body
   });
 
   showToast(`Listed ${body.qty}x ${body.item} on marketplace!`);

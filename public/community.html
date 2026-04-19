@@ -6,15 +6,14 @@
   <title>Community Board - StockWise</title>
   <link href="https://cdn.jsdelivr.net/npm/@fontsource/cascadia-code@latest/index.css" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/auth.js?v=4"></script>
 </head>
 <body>
   <nav class="nav">
     <a href="/" class="nav-logo">Stock<span>Wise</span></a>
     <div class="nav-links">
-      <a href="/customer">Find Food</a>
-      <a href="/tablet">Store Tablet</a>
-      <a href="/dashboard">DCCK Dashboard</a>
-      <a href="/community" class="active">Community Board</a>
+      <a href="/community" class="active">Community</a>
+      <a href="/chatbot">AI Assistant</a>
     </div>
   </nav>
 
@@ -51,9 +50,8 @@
                 <label>What should stores stock?</label>
                 <input type="text" id="voteItem" placeholder="e.g., Fresh Greens, Plantains, Halal Meat" required>
               </div>
-              <div class="form-group">
-                <label>Your Name</label>
-                <input type="text" id="voterName" placeholder="e.g., Maria G." required>
+              <div class="form-group" style="display:none">
+                <input type="text" id="voterName">
               </div>
               <div class="form-group">
                 <label>Your Ward</label>

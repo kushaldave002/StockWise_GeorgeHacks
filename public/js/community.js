@@ -1,3 +1,8 @@
+// Auth guard — any logged-in user
+const _currentUser = SW_Auth.requireAuth();
+if (!_currentUser) throw new Error('redirect');
+SW_Auth.injectNav('community');
+
 const API = '';
 let currentWard = '';
 const THRESHOLD = 5;
@@ -58,13 +63,12 @@ document.getElementById('voteForm').addEventListener('submit', async e => {
   e.preventDefault();
   const body = {
     item: document.getElementById('voteItem').value,
-    voterName: document.getElementById('voterName').value,
+    voterName: _currentUser.name || document.getElementById('voterName').value,
     ward: Number(document.getElementById('voteWard').value)
   };
-  await fetch(`${API}/api/votes`, {
+  await SW_Auth.authFetch(`${API}/api/votes`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+    body: body
   });
   showToast(`Vote counted for "${body.item}"!`);
   document.getElementById('voteItem').value = '';

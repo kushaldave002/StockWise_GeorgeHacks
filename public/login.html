@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>StockWise - Sign In</title>
+  <link href="https://cdn.jsdelivr.net/npm/@fontsource/cascadia-code@latest/index.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body { display: flex; flex-direction: column; min-height: 100vh; justify-content: center; align-items: center; padding: 1rem; }
+
+    .auth-wrap {
+      width: 100%; max-width: 440px;
+    }
+
+    .auth-logo {
+      text-align: center; margin-bottom: 2rem;
+    }
+    .auth-logo a { font-size: 1.6rem; font-weight: 800; color: var(--text); text-decoration: none; letter-spacing: -0.5px; }
+    .auth-logo a span { color: var(--accent); }
+    .auth-logo p { color: var(--text-muted); font-size: 0.75rem; margin-top: 0.4rem; }
+
+    .auth-card {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 2rem;
+    }
+
+    .tab-row {
+      display: flex; background: var(--surface-3); border-radius: var(--radius);
+      padding: 3px; margin-bottom: 1.75rem; gap: 3px;
+    }
+    .tab-btn {
+      flex: 1; font-family: var(--font); font-size: 0.8rem; font-weight: 600;
+      padding: 0.55rem; border: none; border-radius: 6px;
+      cursor: pointer; background: transparent; color: var(--text-secondary);
+      transition: all 0.2s;
+    }
+    .tab-btn.active { background: var(--surface-2); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+
+    .form-section { display: none; }
+    .form-section.active { display: block; }
+
+    .form-title { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 0.3rem; }
+    .form-subtitle { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 1.5rem; }
+
+    .field { margin-bottom: 1rem; }
+    .field label { display: block; font-size: 0.72rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .field input, .field select {
+      width: 100%; font-family: var(--font); font-size: 0.85rem;
+      padding: 0.65rem 0.9rem; border: 1px solid var(--border);
+      border-radius: var(--radius); background: var(--surface-3);
+      color: var(--text); outline: none; transition: border 0.2s;
+      appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); }
+    .field input::placeholder { color: var(--text-muted); }
+    .field select option { background: var(--surface-3); }
+
+    .role-toggle-field { margin-bottom: 1rem; }
+    .role-toggle-field label { display: block; font-size: 0.72rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .role-btns { display: flex; gap: 0.5rem; }
+    .role-opt {
+      flex: 1; font-family: var(--font); font-size: 0.82rem; font-weight: 600;
+      padding: 0.65rem; border: 1px solid var(--border); border-radius: var(--radius);
+      cursor: pointer; background: transparent; color: var(--text-secondary);
+      transition: all 0.2s; text-align: center;
+    }
+    .role-opt:hover { border-color: var(--border-hover); color: var(--text); }
+    .role-opt.active { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); }
+    .role-opt .role-icon { font-size: 1.1rem; display: block; margin-bottom: 0.2rem; }
+    .role-opt .role-name { display: block; }
+    .role-opt .role-desc { display: block; font-size: 0.65rem; color: var(--text-muted); font-weight: 400; margin-top: 0.15rem; }
+    .role-opt.active .role-desc { color: var(--accent); opacity: 0.8; }
+
+    .conditional-field { display: none; }
+    .conditional-field.visible { display: block; }
+
+    .submit-btn {
+      width: 100%; font-family: var(--font); font-size: 0.9rem; font-weight: 700;
+      padding: 0.75rem; border: none; border-radius: var(--radius);
+      background: var(--accent); color: var(--primary);
+      cursor: pointer; transition: all 0.2s; margin-top: 0.5rem;
+    }
+    .submit-btn:hover { background: var(--accent-dim); }
+    .submit-btn:disabled { background: var(--surface-3); color: var(--text-muted); cursor: not-allowed; }
+
+    .error-msg {
+      background: var(--red-dim); border: 1px solid var(--red);
+      border-radius: var(--radius); padding: 0.6rem 0.9rem;
+      font-size: 0.78rem; color: var(--red);
+      margin-bottom: 1rem; display: none;
+    }
+    .error-msg.visible { display: block; }
+
+    .divider { text-align: center; color: var(--text-muted); font-size: 0.72rem; margin: 1.25rem 0; position: relative; }
+    .divider::before, .divider::after { content: ''; position: absolute; top: 50%; width: 40%; height: 1px; background: var(--border); }
+    .divider::before { left: 0; }
+    .divider::after { right: 0; }
+
+    .switch-link { text-align: center; font-size: 0.78rem; color: var(--text-muted); margin-top: 1.25rem; }
+    .switch-link a { color: var(--accent); text-decoration: none; font-weight: 600; cursor: pointer; }
+    .switch-link a:hover { text-decoration: underline; }
+
+    .back-home { text-align: center; margin-top: 1.5rem; }
+    .back-home a { font-size: 0.75rem; color: var(--text-muted); text-decoration: none; }
+    .back-home a:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+  <div class="auth-wrap">
+    <div class="auth-logo">
+      <a href="/">Stock<span>Wise</span></a>
+      <p>Connecting DC Communities to Fresh Food</p>
+    </div>
+
+    <div class="auth-card">
+      <div class="tab-row">
+        <button class="tab-btn active" id="loginTab" onclick="switchTab('login')">Sign In</button>
+        <button class="tab-btn" id="signupTab" onclick="switchTab('signup')">Create Account</button>
+      </div>
+
+      <!-- LOGIN FORM -->
+      <div class="form-section active" id="loginSection">
+        <div class="form-title">Welcome back</div>
+        <div class="form-subtitle">Sign in to access your StockWise account.</div>
+
+        <div class="error-msg" id="loginError"></div>
+
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email"/>
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="loginPassword" placeholder="Your password" autocomplete="current-password" onkeydown="if(event.key==='Enter')submitLogin()"/>
+        </div>
+
+        <button class="submit-btn" id="loginBtn" onclick="submitLogin()">Sign In</button>
+      </div>
+
+      <!-- SIGNUP FORM -->
+      <div class="form-section" id="signupSection">
+        <div class="form-title">Create your account</div>
+        <div class="form-subtitle">Join StockWise to find food or manage your store.</div>
+
+        <div class="error-msg" id="signupError"></div>
+
+        <div class="field">
+          <label>Full Name</label>
+          <input type="text" id="signupName" placeholder="Maria Garcia" autocomplete="name"/>
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="signupEmail" placeholder="you@example.com" autocomplete="email"/>
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="signupPassword" placeholder="At least 6 characters" autocomplete="new-password"/>
+        </div>
+
+        <div class="role-toggle-field">
+          <label>I am a...</label>
+          <div class="role-btns">
+            <div class="role-opt active" id="roleCustomer" onclick="setSignupRole('customer')">
+              <span class="role-icon">🛒</span>
+              <span class="role-name">Customer</span>
+              <span class="role-desc">Find fresh food near me</span>
+            </div>
+            <div class="role-opt" id="roleOwner" onclick="setSignupRole('owner')">
+              <span class="role-icon">🏪</span>
+              <span class="role-name">Store Owner</span>
+              <span class="role-desc">Manage my corner store</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="conditional-field" id="wardField">
+          <div class="field">
+            <label>Your Ward (optional)</label>
+            <select id="signupWard">
+              <option value="">Select your ward...</option>
+              <option value="5">Ward 5</option>
+              <option value="7">Ward 7</option>
+              <option value="8">Ward 8</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="conditional-field visible" id="storeField" style="display:none">
+          <div class="field">
+            <label>Your Store</label>
+            <select id="signupStore">
+              <option value="">Loading stores...</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="submit-btn" id="signupBtn" onclick="submitSignup()">Create Account</button>
+      </div>
+    </div>
+
+    <div class="back-home">
+      <a href="/">← Back to StockWise home</a>
+    </div>
+  </div>
+
+<script>
+  let signupRole = 'customer';
+
+  // Redirect if already logged in
+  const token = localStorage.getItem('sw_token');
+  if (token) {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if (payload.exp * 1000 > Date.now()) {
+        window.location.href = payload.role === 'owner' ? '/tablet' : '/customer';
+      }
+    } catch {}
+  }
+
+  function switchTab(tab) {
+    document.getElementById('loginTab').classList.toggle('active', tab === 'login');
+    document.getElementById('signupTab').classList.toggle('active', tab === 'signup');
+    document.getElementById('loginSection').classList.toggle('active', tab === 'login');
+    document.getElementById('signupSection').classList.toggle('active', tab === 'signup');
+    clearErrors();
+  }
+
+  function clearErrors() {
+    ['loginError', 'signupError'].forEach(id => {
+      const el = document.getElementById(id);
+      el.classList.remove('visible');
+      el.textContent = '';
+    });
+  }
+
+  function showError(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.classList.add('visible');
+  }
+
+  let loadedStores = [];
+
+  function setSignupRole(role) {
+    signupRole = role;
+    document.getElementById('roleCustomer').classList.toggle('active', role === 'customer');
+    document.getElementById('roleOwner').classList.toggle('active', role === 'owner');
+    document.getElementById('wardField').style.display = role === 'customer' ? 'block' : 'none';
+    document.getElementById('storeField').style.display = role === 'owner' ? 'block' : 'none';
+    // Auto-select first store when owner role is chosen
+    if (role === 'owner' && loadedStores.length > 0) {
+      const sel = document.getElementById('signupStore');
+      if (!sel.value) sel.selectedIndex = 1; // skip the placeholder (index 0)
+    }
+  }
+
+  async function loadStores() {
+    try {
+      const res = await fetch('/api/stores');
+      loadedStores = await res.json();
+      const sel = document.getElementById('signupStore');
+      sel.innerHTML = '<option value="">Select your store...</option>';
+      loadedStores.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s._id;
+        opt.textContent = `${s.name} (Ward ${s.ward})`;
+        sel.appendChild(opt);
+      });
+      // If already in owner mode when stores load, auto-select first
+      if (signupRole === 'owner') sel.selectedIndex = 1;
+    } catch {
+      document.getElementById('signupStore').innerHTML = '<option value="">Could not load stores</option>';
+    }
+  }
+  loadStores();
+
+  // Initialize: customer is default role
+  setSignupRole('customer');
+
+  async function submitLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const btn = document.getElementById('loginBtn');
+
+    if (!email || !password) return showError('loginError', 'Please enter your email and password.');
+
+    btn.disabled = true;
+    btn.textContent = 'Signing in...';
+    clearErrors();
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showError('loginError', data.error || 'Login failed.');
+      } else {
+        localStorage.setItem('sw_token', data.token);
+        localStorage.setItem('sw_user', JSON.stringify(data.user));
+        window.location.href = data.user.role === 'owner' ? '/tablet' : '/customer';
+      }
+    } catch {
+      showError('loginError', 'Could not connect to server. Please try again.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
+    }
+  }
+
+  async function submitSignup() {
+    const name = document.getElementById('signupName').value.trim();
+    const email = document.getElementById('signupEmail').value.trim();
+    const password = document.getElementById('signupPassword').value;
+    const ward = document.getElementById('signupWard')?.value || null;
+    const storeId = document.getElementById('signupStore')?.value || null;
+    const btn = document.getElementById('signupBtn');
+
+    if (!name || !email || !password) return showError('signupError', 'Name, email, and password are required.');
+    if (password.length < 6) return showError('signupError', 'Password must be at least 6 characters.');
+    if (signupRole === 'owner' && !storeId) return showError('signupError', 'Please select your store.');
+
+    btn.disabled = true;
+    btn.textContent = 'Creating account...';
+    clearErrors();
+
+    try {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password, role: signupRole, storeId, ward })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showError('signupError', data.error || 'Signup failed.');
+      } else {
+        localStorage.setItem('sw_token', data.token);
+        localStorage.setItem('sw_user', JSON.stringify(data.user));
+        window.location.href = data.user.role === 'owner' ? '/tablet' : '/customer';
+      }
+    } catch {
+      showError('signupError', 'Could not connect to server. Please try again.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Create Account';
+    }
+  }
+</script>
+</body>
+</html>
