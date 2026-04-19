@@ -20,6 +20,7 @@ router.get('/', async (req, res) => {
         itemMap[key] = {
           item: inv.item,
           category: inv.category || 'other',
+          isHealthy: inv.isHealthy !== false,
           minPrice: inv.price,
           maxPrice: inv.price,
           stores: []

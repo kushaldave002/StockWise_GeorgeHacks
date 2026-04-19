@@ -2,6 +2,113 @@ const API = '';
 let activeTab = 'items';
 let isSearching = false;
 
+// ── Cart State ─────────────────────────────────────────────────────────────
+let cart = JSON.parse(localStorage.getItem('sw_cart') || '[]');
+
+function saveCart() {
+  localStorage.setItem('sw_cart', JSON.stringify(cart));
+}
+
+function openCart() {
+  document.getElementById('cartPanel').classList.add('open');
+  document.getElementById('cartOverlay').classList.add('visible');
+}
+
+function closeCart() {
+  document.getElementById('cartPanel').classList.remove('open');
+  document.getElementById('cartOverlay').classList.remove('visible');
+}
+
+function addToCart(item, price, isHealthy, storeName) {
+  const existing = cart.find(c => c.item === item && c.storeName === storeName);
+  if (existing) {
+    existing.qty++;
+  } else {
+    cart.push({ item, price, isHealthy, storeName, qty: 1 });
+  }
+  saveCart();
+  renderCart();
+  showToast(`Added ${item} to cart`);
+}
+
+function changeQty(index, delta) {
+  cart[index].qty += delta;
+  if (cart[index].qty <= 0) cart.splice(index, 1);
+  saveCart();
+  renderCart();
+}
+
+function clearCart() {
+  cart = [];
+  saveCart();
+  renderCart();
+}
+
+function renderCart() {
+  const fab = document.getElementById('cartFab');
+  const countEl = document.getElementById('cartCount');
+  const itemsEl = document.getElementById('cartItems');
+  const healthWrap = document.getElementById('healthBarWrap');
+  const healthFill = document.getElementById('healthBarFill');
+  const healthLabel = document.getElementById('healthPctLabel');
+  const discountBadge = document.getElementById('discountBadge');
+  const discountRow = document.getElementById('discountRow');
+  const totalsEl = document.getElementById('cartTotals');
+  const subtotalEl = document.getElementById('subtotalVal');
+  const discountEl = document.getElementById('discountVal');
+  const totalEl = document.getElementById('totalVal');
+
+  const totalUnits = cart.reduce((s, c) => s + c.qty, 0);
+  const healthyUnits = cart.reduce((s, c) => s + (c.isHealthy ? c.qty : 0), 0);
+  const healthPct = totalUnits > 0 ? Math.round((healthyUnits / totalUnits) * 100) : 0;
+  const qualifies = healthPct >= 70;
+  const subtotal = cart.reduce((s, c) => s + c.price * c.qty, 0);
+  const discount = qualifies ? subtotal * 0.05 : 0;
+  const total = subtotal - discount;
+
+  // FAB
+  fab.style.display = totalUnits > 0 ? 'flex' : 'none';
+  countEl.textContent = totalUnits;
+
+  // Items list
+  if (cart.length === 0) {
+    itemsEl.innerHTML = '<p style="color:var(--text-secondary);font-size:0.9rem;text-align:center;margin-top:2rem">Cart is empty.<br>Add items from Browse or Search.</p>';
+    healthWrap.style.display = 'none';
+    discountBadge.classList.remove('visible');
+    totalsEl.style.display = 'none';
+    return;
+  }
+
+  itemsEl.innerHTML = cart.map((c, i) => `
+    <div class="cart-item">
+      <div class="cart-item-name">${c.item}<br><span style="font-size:0.75rem;color:var(--text-secondary)">${c.storeName}</span></div>
+      <span class="cart-item-health ${c.isHealthy ? 'healthy' : 'unhealthy'}">${c.isHealthy ? '✓' : '✗'}</span>
+      <div class="cart-item-qty">
+        <button onclick="changeQty(${i}, -1)">−</button>
+        <span>${c.qty}</span>
+        <button onclick="changeQty(${i}, 1)">+</button>
+      </div>
+      <div class="cart-item-price">$${(c.price * c.qty).toFixed(2)}</div>
+    </div>
+  `).join('');
+
+  // Health bar
+  healthWrap.style.display = '';
+  healthFill.style.width = healthPct + '%';
+  healthFill.style.background = healthPct >= 70 ? 'var(--accent)' : healthPct >= 50 ? '#f59e0b' : 'var(--red)';
+  healthLabel.textContent = `${healthPct}% healthy (${healthyUnits}/${totalUnits} items)`;
+
+  // Discount badge
+  discountBadge.classList.toggle('visible', qualifies);
+
+  // Totals
+  totalsEl.style.display = '';
+  subtotalEl.textContent = '$' + subtotal.toFixed(2);
+  discountRow.style.display = qualifies ? '' : 'none';
+  discountEl.textContent = '-$' + discount.toFixed(2);
+  totalEl.textContent = '$' + total.toFixed(2);
+}
+
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -43,7 +150,10 @@ async function loadBrowseItems() {
                 ${item.minPrice === item.maxPrice ? '$' + item.minPrice.toFixed(2) : '$' + item.minPrice.toFixed(2) + '–$' + item.maxPrice.toFixed(2)}
               </span>
             </div>
-            <div style="font-size:0.8rem;color:var(--text-secondary);margin-top:0.25rem">${item.stores.length} store${item.stores.length !== 1 ? 's' : ''}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.25rem">
+              <div style="font-size:0.8rem;color:var(--text-secondary)">${item.stores.length} store${item.stores.length !== 1 ? 's' : ''} · ${item.isHealthy ? '<span style="color:var(--accent);font-size:0.75rem">✓ Healthy</span>' : '<span style="color:var(--red);font-size:0.75rem">✗ Unhealthy</span>'}</div>
+              <button class="add-to-cart-btn" onclick="event.stopPropagation();addToCart(${JSON.stringify(item.item)},${item.minPrice},${item.isHealthy === true},${JSON.stringify(item.stores[0]?.name||'')})" disabled="${!item.stores[0]?.name}">+ Add</button>
+            </div>
             <div class="item-detail" style="display:none;margin-top:0.75rem;border-top:1px solid var(--border);padding-top:0.75rem">
               ${item.stores.map(s => `
                 <div style="font-size:0.85rem;margin-bottom:0.35rem">
@@ -160,9 +270,13 @@ async function doSearch() {
       <p style="color:var(--text-secondary);margin-bottom:0.75rem">${store.address}</p>
       <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
         ${store.items.map(item => `
-          <div style="background:var(--accent-glow);padding:0.4rem 0.8rem;border-radius:8px;font-size:0.9rem">
-            <strong>${item.item}</strong> &mdash; ${item.qty} left &mdash; $${item.price.toFixed(2)}
-            ${item.qty <= 3 ? '<span class="badge badge-red">LOW</span>' : ''}
+          <div style="background:var(--accent-glow);padding:0.4rem 0.8rem;border-radius:8px;font-size:0.9rem;display:flex;align-items:center;gap:0.5rem">
+            <span>
+              <strong>${item.item}</strong> &mdash; ${item.qty} left &mdash; $${item.price.toFixed(2)}
+              ${item.qty <= 3 ? '<span class="badge badge-red">LOW</span>' : ''}
+              ${item.isHealthy ? '<span style="color:var(--accent);font-size:0.75rem">&#10003;</span>' : '<span style="color:var(--red);font-size:0.75rem">&#10007;</span>'}
+            </span>
+            <button class="add-to-cart-btn" onclick="addToCart(${JSON.stringify(item.item)},${item.price},${item.isHealthy === true},${JSON.stringify(store.name)})">+ Add</button>
           </div>
         `).join('')}
       </div>
@@ -290,3 +404,4 @@ async function loadRecent() {
 // Init — load browse items and recent requests on page load
 loadBrowseItems();
 loadRecent();
+renderCart();
