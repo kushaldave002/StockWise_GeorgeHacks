@@ -4,21 +4,14 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 const fetch = require('node-fetch');
-const { MongoMemoryServer } = require('mongodb-memory-server');
-
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ─── Mongoose Models (correct schema matching actual DB) ──────────────────────
-const CornerStore = require('./models/CornerStore');
-const Inventory = require('./models/Inventory');
-const Product = require('./models/Product');
-const SaleTransaction = require('./models/SaleTransaction');
-const Stockout = require('./models/Stockout');
-const Store = require('./models/Store');       // simple Store (used by seed-data & routes)
-const Sale = require('./models/Sale');         // simple Sale (used by seed-data & routes)
+// ─── Mongoose Models ──────────────────────────────────────────────────────────
+const Store = require('./models/Store');
+const Sale = require('./models/Sale');
 const Listing = require('./models/Listing');
 const Request = require('./models/Request');
 const Vote = require('./models/Vote');
@@ -95,63 +88,15 @@ async function askGemini(systemContext, userMessage, history) {
   }
 }
 
-// ─── Helper: get store data from whichever schema exists ──────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 async function getAllStoresWithInventory() {
-  // Check if Inventory collection has data (indicates detailed schema is in use)
-  const inventoryDocs = await Inventory.find({});
-
-  if (inventoryDocs.length > 0) {
-    // Detailed schema: CornerStore + separate Inventory collection
-    const cornerStores = await CornerStore.find({ isActive: { $ne: false } });
-    const products = await Product.find({});
-
-    // Build product lookup by ID
-    const productMap = {};
-    products.forEach(p => { productMap[p._id.toString()] = p; });
-
-    return cornerStores.map(store => {
-      // Find inventory items for this store
-      const storeInventory = inventoryDocs
-        .filter(inv => inv.storeId && inv.storeId.toString() === store._id.toString())
-        .map(inv => {
-          const product = inv.productId ? productMap[inv.productId.toString()] : null;
-          return {
-            item: inv.productName || (product ? product.name : 'Unknown'),
-            qty: inv.currentStock || 0,
-            price: product ? (product.pricing?.basePrice || 0) : 0,
-            category: inv.category || (product ? product.category?.primary : ''),
-            status: inv.status || (inv.currentStock === 0 ? 'out_of_stock' : inv.currentStock < (inv.thresholds?.minStock || 10) ? 'low_stock' : 'in_stock'),
-            daysUntilStockout: inv.metrics?.daysUntilStockout,
-            reorderPoint: inv.thresholds?.reorderPoint
-          };
-        });
-
-      const addr = store.address || {};
-      const addressStr = addr.street
-        ? `${addr.street}, ${addr.city || ''}, ${addr.state || ''} ${addr.zipCode || ''}`
-        : (typeof store.address === 'string' ? store.address : '');
-
-      return {
-        id: store._id,
-        name: store.name,
-        code: store.code,
-        address: addressStr.trim(),
-        ward: addr.ward || store.ward,
-        contact: store.contact,
-        hours: store.hours,
-        characteristics: store.characteristics,
-        inventory: storeInventory
-      };
-    });
-  }
-
-  // Fallback: simple Store schema (with embedded inventory from seed-data)
-  const simpleStores = await Store.find();
-  return simpleStores.map(s => ({
+  const stores = await Store.find();
+  return stores.map(s => ({
     id: s._id,
     name: s.name,
     address: s.address || '',
     ward: s.ward,
+    characteristics: s.characteristics || {},
     inventory: (s.inventory || []).map(i => ({
       item: i.item, qty: i.qty, price: i.price, category: i.category,
       status: i.qty === 0 ? 'out_of_stock' : i.qty < 10 ? 'low_stock' : 'in_stock'
@@ -161,41 +106,17 @@ async function getAllStoresWithInventory() {
 
 async function getSalesForStore(storeId) {
   const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-
-  // Try SaleTransaction first (detailed schema)
-  const txns = await SaleTransaction.find({
-    'metadata.storeId': storeId,
-    timestamp: { $gte: oneWeekAgo }
-  }).sort({ timestamp: -1 });
-
-  if (txns.length > 0) {
-    const salesMap = {};
-    txns.forEach(t => {
-      const item = t.metadata?.productName || 'Unknown';
-      if (!salesMap[item]) salesMap[item] = { qty: 0, revenue: 0, txns: 0, snapCount: 0 };
-      salesMap[item].qty += t.quantity || 0;
-      salesMap[item].revenue += t.totalAmount || 0;
-      salesMap[item].txns += 1;
-      if (t.paymentMethod === 'SNAP') salesMap[item].snapCount += 1;
-    });
-    return Object.entries(salesMap).map(([item, data]) => ({
-      item, weeklyQty: data.qty, weeklyRevenue: data.revenue.toFixed(2),
-      transactions: data.txns, snapPurchases: data.snapCount,
-      trend: data.qty > 5 ? 'Active' : 'Slow'
-    }));
-  }
-
-  // Fallback: simple Sale model
   const sales = await Sale.find({ store: storeId, date: { $gte: oneWeekAgo } }).sort({ date: -1 });
   const salesMap = {};
   sales.forEach(s => {
-    if (!salesMap[s.item]) salesMap[s.item] = { qty: 0, revenue: 0 };
+    if (!salesMap[s.item]) salesMap[s.item] = { qty: 0, revenue: 0, snapCount: 0 };
     salesMap[s.item].qty += s.qty;
     salesMap[s.item].revenue += s.qty * s.price;
+    if (s.isSnap) salesMap[s.item].snapCount++;
   });
   return Object.entries(salesMap).map(([item, data]) => ({
     item, weeklyQty: data.qty, weeklyRevenue: data.revenue.toFixed(2),
-    trend: data.qty > 5 ? 'Active' : 'Slow'
+    snapPurchases: data.snapCount, trend: data.qty > 5 ? 'Active' : 'Slow'
   }));
 }
 
@@ -245,22 +166,14 @@ async function buildOwnerContext(storeId) {
   if (!store) return 'No stores found in the database.';
 
   const salesSummary = await getSalesForStore(store.id);
-
-  // Get stockouts
-  const stockouts = await Stockout.find({ storeId: store.id }).sort({ occurredAt: -1 }).limit(10).catch(() => []);
-
-  // Get community demand signals
   const demandVotes = await Vote.find().sort({ count: -1 }).limit(10).catch(() => []);
   const pendingRequests = await Request.find({ matched: false }).sort({ timestamp: -1 }).limit(10).catch(() => []);
 
-  // Low stock alerts from inventory
   const lowStock = store.inventory
-    .filter(i => i.status === 'low_stock' || i.status === 'out_of_stock' || i.qty < 15)
+    .filter(i => i.qty < 15)
     .map(i => ({
       item: i.item, qty: i.qty,
-      status: i.qty === 0 ? 'OUT OF STOCK' : 'LOW STOCK',
-      daysUntilStockout: i.daysUntilStockout || 'N/A',
-      reorderPoint: i.reorderPoint || 'N/A'
+      status: i.qty === 0 ? 'OUT OF STOCK' : 'LOW STOCK'
     }));
 
   return `You are a grocery store analytics assistant for store owners on the StockWise platform. Use the following live data.
@@ -284,10 +197,6 @@ ${JSON.stringify(lowStock, null, 2)}
 
 7-DAY SALES SUMMARY for ${store.name}:
 ${JSON.stringify(salesSummary, null, 2)}
-${stockouts.length > 0 ? `\nRECENT STOCKOUTS:\n${JSON.stringify(stockouts.map(s => ({
-  product: s.productName, occurredAt: s.occurredAt, daysOut: s.daysOutOfStock,
-  estimatedLostRevenue: s.impact?.lostRevenue, resolution: s.resolutionType
-})), null, 2)}` : ''}
 ${demandVotes.length > 0 ? `\nCOMMUNITY DEMAND (items customers are voting for):\n${JSON.stringify(demandVotes.map(v => ({
   item: v.item, ward: v.ward, votes: v.count
 })), null, 2)}` : ''}
@@ -306,45 +215,13 @@ RULES:
 
 // ─── Order Management (updates MongoDB) ───────────────────────────────────────
 async function placeOrder(storeId, product, quantity) {
-  const normalizedProduct = product.toLowerCase();
   const qty = parseInt(quantity);
-
-  // Try Inventory collection first (detailed schema)
-  const invDoc = await Inventory.findOne({
-    storeId,
-    productName: new RegExp(normalizedProduct, 'i')
-  });
-
-  if (invDoc) {
-    const store = await CornerStore.findById(storeId);
-    const storeName = store?.name || 'Unknown Store';
-    await Inventory.updateOne(
-      { _id: invDoc._id },
-      { $inc: { currentStock: qty }, $set: { lastStockUpdate: new Date() } }
-    );
-    const product_data = await Product.findById(invDoc.productId);
-    const price = product_data?.pricing?.basePrice || 0;
-    return {
-      success: true,
-      order: {
-        orderId: `ORD-${Date.now()}`,
-        storeId,
-        storeName,
-        product: invDoc.productName,
-        quantity: qty,
-        price,
-        totalCost: price * qty,
-        status: 'Confirmed',
-        placedAt: new Date().toISOString()
-      }
-    };
-  }
-
-  // Fallback: embedded inventory in simple Store model
   const store = await Store.findById(storeId);
   if (!store) return { success: false, message: 'Store not found.' };
 
-  const invItem = (store.inventory || []).find(i => i.item?.toLowerCase() === normalizedProduct);
+  const invItem = (store.inventory || []).find(i =>
+    i.item?.toLowerCase() === product.toLowerCase()
+  );
   if (!invItem) {
     return { success: false, message: `Product "${product}" not found in inventory.` };
   }
@@ -373,24 +250,7 @@ async function placeOrder(storeId, product, quantity) {
 // ─── Low Stock API ────────────────────────────────────────────────────────────
 app.get('/api/lowstock/:storeId', async (req, res) => {
   try {
-    const storeId = req.params.storeId;
-
-    // Try Inventory collection first
-    const invDocs = await Inventory.find({ storeId });
-    if (invDocs.length > 0) {
-      const alerts = invDocs
-        .filter(i => i.status === 'low_stock' || i.status === 'out_of_stock' || (i.currentStock || 0) < (i.thresholds?.minStock || 15))
-        .map(i => ({
-          product: i.productName,
-          qty: i.currentStock || 0,
-          status: i.currentStock === 0 ? 'Out of Stock' : 'Low Stock',
-          daysUntilStockout: i.metrics?.daysUntilStockout || 'N/A'
-        }));
-      return res.json(alerts);
-    }
-
-    // Fallback: embedded inventory in Store
-    const store = await Store.findById(storeId);
+    const store = await Store.findById(req.params.storeId);
     if (!store) return res.status(404).json({ error: 'Store not found' });
     const alerts = (store.inventory || [])
       .filter(i => i.qty < 15)
@@ -589,60 +449,22 @@ app.get('/:page', (req, res, next) => {
 const PORT = process.env.PORT || 3000;
 
 async function start() {
-  let uri = process.env.MONGODB_URI;
-
-  // Use in-memory MongoDB if no external URI or local MongoDB unavailable
-  if (!uri || uri.includes('localhost')) {
-    try {
-      await mongoose.connect(uri || 'mongodb://localhost:27017/grocery-chatbot');
-    } catch {
-      console.log('Local MongoDB not found, starting in-memory server...');
-      const mongod = await MongoMemoryServer.create();
-      uri = mongod.getUri();
-    }
-  }
-
-  if (mongoose.connection.readyState !== 1) {
-    await mongoose.connect(uri);
-  }
+  const uri = process.env.MONGODB_URI;
+  if (!uri) throw new Error('MONGODB_URI not set in .env');
+  await mongoose.connect(uri);
   console.log('Connected to MongoDB');
-
-  // Auto-seed if database is empty (check both schemas)
-  const cornerCount = await CornerStore.countDocuments();
-  const storeCount = await Store.countDocuments();
-  if (cornerCount === 0 && storeCount === 0) {
-    console.log('Database empty, running seed...');
-    await require('./seed-data')();
-  }
 
   app.listen(PORT, async () => {
     console.log(`\nStockWise running at http://localhost:${PORT}\n`);
 
-    // Show data summary
-    const cs = await CornerStore.countDocuments();
-    const ss = await Store.countDocuments();
-    const invCount = await Inventory.countDocuments();
-    const prodCount = await Product.countDocuments();
-    const saleCount = await SaleTransaction.countDocuments();
-    const simpleSaleCount = await Sale.countDocuments();
-
+    const storeCount = await Store.countDocuments();
+    const saleCount = await Sale.countDocuments();
+    const requestCount = await Request.countDocuments();
+    const voteCount = await Vote.countDocuments();
     console.log('Database summary:');
-    console.log(`  CornerStores: ${cs}, Simple Stores: ${ss}`);
-    console.log(`  Inventory docs: ${invCount}, Products: ${prodCount}`);
-    console.log(`  SaleTransactions: ${saleCount}, Simple Sales: ${simpleSaleCount}`);
+    console.log(`  Stores: ${storeCount}, Sales: ${saleCount}, Requests: ${requestCount}, Votes: ${voteCount}`);
 
-    // Show low stock from whichever source has data
-    if (invCount > 0) {
-      const lowStock = await Inventory.find({
-        $or: [{ status: 'low_stock' }, { status: 'out_of_stock' }, { currentStock: { $lt: 15 } }]
-      });
-      if (lowStock.length > 0) {
-        console.log(`\nLow stock alerts (${lowStock.length} items):`);
-        lowStock.slice(0, 10).forEach(i => {
-          console.log(`  ${i.productName}: ${i.currentStock} units (${i.status})`);
-        });
-      }
-    } else {
+    if (storeCount > 0) {
       const stores = await Store.find();
       console.log('\nLow stock alerts:');
       stores.forEach(store => {
