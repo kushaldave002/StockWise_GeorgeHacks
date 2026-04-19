@@ -15,7 +15,8 @@ const storeSchema = new mongoose.Schema({
     item: String,
     qty: Number,
     price: Number,
-    category: String
+    category: String,
+    isHealthy: { type: Boolean, default: true }
   }]
 });
 

@@ -28,16 +28,19 @@ async function seed() {
       lat: 38.8960, lng: -76.9370,
       characteristics: { acceptsSNAP: true, acceptsWIC: true, hasRefrigeration: true },
       inventory: [
-        { item: 'Bananas', qty: 25, price: 0.59, category: 'produce' },
-        { item: 'Apples', qty: 15, price: 1.29, category: 'produce' },
-        { item: 'Yuca', qty: 8, price: 2.49, category: 'produce' },
-        { item: 'Plantains', qty: 12, price: 0.79, category: 'produce' },
-        { item: 'Tomatoes', qty: 18, price: 1.99, category: 'produce' },
-        { item: 'Onions', qty: 20, price: 0.99, category: 'produce' },
-        { item: 'Whole Milk', qty: 10, price: 4.29, category: 'dairy' },
-        { item: 'Eggs (dozen)', qty: 8, price: 3.99, category: 'dairy' },
-        { item: 'Rice (5lb)', qty: 6, price: 5.49, category: 'pantry' },
-        { item: 'Black Beans (can)', qty: 15, price: 1.19, category: 'pantry' }
+        { item: 'Bananas', qty: 25, price: 0.59, category: 'produce', isHealthy: true },
+        { item: 'Apples', qty: 15, price: 1.29, category: 'produce', isHealthy: true },
+        { item: 'Yuca', qty: 8, price: 2.49, category: 'produce', isHealthy: true },
+        { item: 'Plantains', qty: 12, price: 0.79, category: 'produce', isHealthy: true },
+        { item: 'Tomatoes', qty: 18, price: 1.99, category: 'produce', isHealthy: true },
+        { item: 'Onions', qty: 20, price: 0.99, category: 'produce', isHealthy: true },
+        { item: 'Whole Milk', qty: 10, price: 4.29, category: 'dairy', isHealthy: true },
+        { item: 'Eggs (dozen)', qty: 8, price: 3.99, category: 'dairy', isHealthy: true },
+        { item: 'Rice (5lb)', qty: 6, price: 5.49, category: 'pantry', isHealthy: true },
+        { item: 'Black Beans (can)', qty: 15, price: 1.19, category: 'pantry', isHealthy: true },
+        { item: 'Chips (Lays)', qty: 20, price: 2.99, category: 'snacks', isHealthy: false },
+        { item: 'Soda (2L)', qty: 18, price: 1.99, category: 'drinks', isHealthy: false },
+        { item: 'Candy Bar', qty: 30, price: 1.49, category: 'snacks', isHealthy: false }
       ]
     },
     {
@@ -47,16 +50,18 @@ async function seed() {
       lat: 38.8410, lng: -76.9940,
       characteristics: { acceptsSNAP: true, acceptsWIC: true, hasRefrigeration: true },
       inventory: [
-        { item: 'Collard Greens', qty: 10, price: 2.49, category: 'produce' },
-        { item: 'Sweet Potatoes', qty: 14, price: 1.49, category: 'produce' },
-        { item: 'Bananas', qty: 20, price: 0.59, category: 'produce' },
-        { item: 'Oranges', qty: 18, price: 0.89, category: 'produce' },
-        { item: 'Cabbage', qty: 6, price: 1.79, category: 'produce' },
-        { item: 'Plantains', qty: 5, price: 0.79, category: 'produce' },
-        { item: 'Whole Milk', qty: 8, price: 4.29, category: 'dairy' },
-        { item: 'Cheese Slices', qty: 10, price: 3.49, category: 'dairy' },
-        { item: 'Bread (whole wheat)', qty: 7, price: 3.29, category: 'pantry' },
-        { item: 'Pinto Beans (can)', qty: 12, price: 1.09, category: 'pantry' }
+        { item: 'Collard Greens', qty: 10, price: 2.49, category: 'produce', isHealthy: true },
+        { item: 'Sweet Potatoes', qty: 14, price: 1.49, category: 'produce', isHealthy: true },
+        { item: 'Bananas', qty: 20, price: 0.59, category: 'produce', isHealthy: true },
+        { item: 'Oranges', qty: 18, price: 0.89, category: 'produce', isHealthy: true },
+        { item: 'Cabbage', qty: 6, price: 1.79, category: 'produce', isHealthy: true },
+        { item: 'Plantains', qty: 5, price: 0.79, category: 'produce', isHealthy: true },
+        { item: 'Whole Milk', qty: 8, price: 4.29, category: 'dairy', isHealthy: true },
+        { item: 'Cheese Slices', qty: 10, price: 3.49, category: 'dairy', isHealthy: false },
+        { item: 'Bread (whole wheat)', qty: 7, price: 3.29, category: 'pantry', isHealthy: true },
+        { item: 'Pinto Beans (can)', qty: 12, price: 1.09, category: 'pantry', isHealthy: true },
+        { item: 'Instant Ramen', qty: 25, price: 0.99, category: 'pantry', isHealthy: false },
+        { item: 'Fruit Punch (1L)', qty: 15, price: 1.79, category: 'drinks', isHealthy: false }
       ]
     },
     {
@@ -66,16 +71,19 @@ async function seed() {
       lat: 38.9000, lng: -76.9880,
       characteristics: { acceptsSNAP: true, acceptsWIC: false, hasRefrigeration: true },
       inventory: [
-        { item: 'Avocados', qty: 12, price: 1.99, category: 'produce' },
-        { item: 'Limes', qty: 30, price: 0.39, category: 'produce' },
-        { item: 'Cilantro', qty: 8, price: 0.99, category: 'produce' },
-        { item: 'Jalapeños', qty: 10, price: 0.69, category: 'produce' },
-        { item: 'Tomatoes', qty: 15, price: 1.99, category: 'produce' },
-        { item: 'Yuca', qty: 6, price: 2.49, category: 'produce' },
-        { item: 'Mangoes', qty: 10, price: 1.49, category: 'produce' },
-        { item: 'Eggs (dozen)', qty: 6, price: 3.99, category: 'dairy' },
-        { item: 'Corn Tortillas', qty: 12, price: 2.49, category: 'pantry' },
-        { item: 'Rice (5lb)', qty: 8, price: 5.49, category: 'pantry' }
+        { item: 'Avocados', qty: 12, price: 1.99, category: 'produce', isHealthy: true },
+        { item: 'Limes', qty: 30, price: 0.39, category: 'produce', isHealthy: true },
+        { item: 'Cilantro', qty: 8, price: 0.99, category: 'produce', isHealthy: true },
+        { item: 'Jalapeños', qty: 10, price: 0.69, category: 'produce', isHealthy: true },
+        { item: 'Tomatoes', qty: 15, price: 1.99, category: 'produce', isHealthy: true },
+        { item: 'Yuca', qty: 6, price: 2.49, category: 'produce', isHealthy: true },
+        { item: 'Mangoes', qty: 10, price: 1.49, category: 'produce', isHealthy: true },
+        { item: 'Eggs (dozen)', qty: 6, price: 3.99, category: 'dairy', isHealthy: true },
+        { item: 'Corn Tortillas', qty: 12, price: 2.49, category: 'pantry', isHealthy: true },
+        { item: 'Rice (5lb)', qty: 8, price: 5.49, category: 'pantry', isHealthy: true },
+        { item: 'White Bread', qty: 12, price: 2.49, category: 'pantry', isHealthy: false },
+        { item: 'Chips (Lays)', qty: 15, price: 2.99, category: 'snacks', isHealthy: false },
+        { item: 'Soda (2L)', qty: 20, price: 1.99, category: 'drinks', isHealthy: false }
       ]
     },
     {
@@ -85,16 +93,18 @@ async function seed() {
       lat: 38.8310, lng: -76.9990,
       characteristics: { acceptsSNAP: true, acceptsWIC: true, hasRefrigeration: true },
       inventory: [
-        { item: 'Kale', qty: 8, price: 2.99, category: 'produce' },
-        { item: 'Carrots (1lb)', qty: 12, price: 1.29, category: 'produce' },
-        { item: 'Potatoes (5lb)', qty: 6, price: 4.99, category: 'produce' },
-        { item: 'Bananas', qty: 18, price: 0.59, category: 'produce' },
-        { item: 'Green Peppers', qty: 9, price: 0.99, category: 'produce' },
-        { item: 'Collard Greens', qty: 5, price: 2.49, category: 'produce' },
-        { item: 'Yogurt', qty: 10, price: 1.49, category: 'dairy' },
-        { item: 'Butter', qty: 6, price: 4.99, category: 'dairy' },
-        { item: 'Oatmeal', qty: 8, price: 3.49, category: 'pantry' },
-        { item: 'Canned Tuna', qty: 15, price: 1.79, category: 'pantry' }
+        { item: 'Kale', qty: 8, price: 2.99, category: 'produce', isHealthy: true },
+        { item: 'Carrots (1lb)', qty: 12, price: 1.29, category: 'produce', isHealthy: true },
+        { item: 'Potatoes (5lb)', qty: 6, price: 4.99, category: 'produce', isHealthy: true },
+        { item: 'Bananas', qty: 18, price: 0.59, category: 'produce', isHealthy: true },
+        { item: 'Green Peppers', qty: 9, price: 0.99, category: 'produce', isHealthy: true },
+        { item: 'Collard Greens', qty: 5, price: 2.49, category: 'produce', isHealthy: true },
+        { item: 'Yogurt', qty: 10, price: 1.49, category: 'dairy', isHealthy: true },
+        { item: 'Butter', qty: 6, price: 4.99, category: 'dairy', isHealthy: false },
+        { item: 'Oatmeal', qty: 8, price: 3.49, category: 'pantry', isHealthy: true },
+        { item: 'Canned Tuna', qty: 15, price: 1.79, category: 'pantry', isHealthy: true },
+        { item: 'Candy Bar', qty: 25, price: 1.49, category: 'snacks', isHealthy: false },
+        { item: 'Instant Ramen', qty: 20, price: 0.99, category: 'pantry', isHealthy: false }
       ]
     }
   ]);
