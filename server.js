@@ -8,6 +8,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+let dbConnectPromise = null;
 
 // ─── Mongoose Models ──────────────────────────────────────────────────────────
 const Store = require('./models/Store');
@@ -448,10 +449,22 @@ app.get('/:page', (req, res, next) => {
 // ─── Start Server with MongoDB ────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 
-async function start() {
+async function connectToDatabase() {
   const uri = process.env.MONGODB_URI;
   if (!uri) throw new Error('MONGODB_URI not set in .env');
-  await mongoose.connect(uri);
+  if (mongoose.connection.readyState === 1) return mongoose.connection;
+  if (!dbConnectPromise) {
+    dbConnectPromise = mongoose.connect(uri).catch(err => {
+      dbConnectPromise = null;
+      throw err;
+    });
+  }
+  await dbConnectPromise;
+  return mongoose.connection;
+}
+
+async function start() {
+  await connectToDatabase();
   console.log('Connected to MongoDB');
 
   app.listen(PORT, async () => {
@@ -478,7 +491,19 @@ async function start() {
   });
 }
 
-start().catch(err => {
-  console.error('Startup error:', err.message);
-  process.exit(1);
-});
+if (require.main === module) {
+  start().catch(err => {
+    console.error('Startup error:', err.message);
+    process.exit(1);
+  });
+}
+
+module.exports = async (req, res) => {
+  try {
+    await connectToDatabase();
+    return app(req, res);
+  } catch (err) {
+    console.error('Request error:', err.message);
+    res.status(500).json({ error: 'Server startup error: ' + err.message });
+  }
+};
