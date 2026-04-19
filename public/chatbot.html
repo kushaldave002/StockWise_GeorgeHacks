@@ -364,7 +364,7 @@
     try {
       const res = await SW_Auth.authFetch('/api/chat', {
         method: 'POST',
-        body: { message: text, history: chatHistory }
+        body: { message: text, history: chatHistory, role: currentRole, storeId: currentStoreId }
       });
       const data = await res.json();
       removeTyping();
