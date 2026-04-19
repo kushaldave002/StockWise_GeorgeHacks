@@ -1,7 +1,7 @@
 {
-  "name": "grocery-chatbot-final",
+  "name": "stockwise",
   "version": "1.0.0",
-  "description": "AI-powered grocery chatbot using Google Gemini",
+  "description": "Connecting DC communities to fresh food through corner stores",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

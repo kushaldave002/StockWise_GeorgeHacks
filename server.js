@@ -33,35 +33,62 @@ app.use('/api/votes', require('./routes/votes'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/demand', require('./routes/demand'));
 
-// ─── Gemini AI Helper ─────────────────────────────────────────────────────────
-async function askGemini(systemContext, userMessage) {
+// ─── Gemini AI Helper (supports conversation history) ────────────────────────
+async function askGemini(systemContext, userMessage, history) {
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`;
 
-  const prompt = `${systemContext}\n\nUser: "${userMessage}"\n\nReply in 1-3 short sentences. Be direct and concise like a store clerk.`;
+  // Build multi-turn contents array with system context + history + current message
+  const contents = [];
+
+  // First turn: system context as initial user message + model ack
+  contents.push({ role: 'user', parts: [{ text: systemContext + '\n\nAcknowledge that you have this data and are ready to help.' }] });
+  contents.push({ role: 'model', parts: [{ text: 'I have the live inventory and store data loaded. I am ready to help.' }] });
+
+  // Add conversation history (last 10 turns to keep context manageable)
+  if (history && history.length > 0) {
+    const recentHistory = history.slice(-10);
+    for (const msg of recentHistory) {
+      contents.push({
+        role: msg.role === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.text }]
+      });
+    }
+  }
+
+  // Add current user message
+  contents.push({
+    role: 'user',
+    parts: [{ text: userMessage + '\n\nRespond helpfully. Always include store name, address, price, and stock quantity when relevant. Use plain text only, no markdown. Format clearly with line breaks.' }]
+  });
 
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.7, maxOutputTokens: 200 }
+      contents,
+      generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
     })
   });
 
   const data = await response.json();
   if (data.error) throw new Error(data.error.message);
-  return data.candidates[0].content.parts[0].text;
+  const candidate = data.candidates[0];
+  const text = candidate.content.parts[0].text;
+  if (candidate.finishReason && candidate.finishReason !== 'STOP') {
+    console.log('Gemini finish reason:', candidate.finishReason);
+  }
+  return text;
 }
 
 // ─── Helper: get store data from whichever schema exists ──────────────────────
 async function getAllStoresWithInventory() {
-  // Try CornerStore (detailed schema) + Inventory collection first
-  const cornerStores = await CornerStore.find({ isActive: { $ne: false } });
+  // Check if Inventory collection has data (indicates detailed schema is in use)
+  const inventoryDocs = await Inventory.find({});
 
-  if (cornerStores.length > 0) {
-    // Detailed schema: stores + separate inventory collection
-    const inventoryDocs = await Inventory.find({});
+  if (inventoryDocs.length > 0) {
+    // Detailed schema: CornerStore + separate Inventory collection
+    const cornerStores = await CornerStore.find({ isActive: { $ne: false } });
     const products = await Product.find({});
 
     // Build product lookup by ID
@@ -187,11 +214,14 @@ ${JSON.stringify(stores.map(s => ({
 })), null, 2)}
 ${listingsContext}
 RULES:
-- Give SHORT, DIRECT answers (2-4 sentences max)
-- Do NOT show your thinking process or checklists
-- Just answer the question naturally like a helpful store clerk would
-- Include store name, address, and price when relevant
-- Mention SNAP/WIC only if the customer asks about payment methods`;
+- ALWAYS include store name, address, price per unit, and quantity available
+- If multiple stores have the item, list all of them
+- Format each store on its own line for readability
+- Be friendly and helpful like a knowledgeable store assistant
+- If an item is low stock (under 5), mention it might sell out soon
+- Mention SNAP/WIC acceptance only if the customer asks about payment
+- If item is not available anywhere, suggest similar items from the inventory
+- Do NOT use markdown formatting like ** or ## -- use plain text only`;
 }
 
 async function buildOwnerContext(storeId) {
@@ -252,36 +282,28 @@ ${pendingRequests.length > 0 ? `\nUNFULFILLED CUSTOMER REQUESTS:\n${JSON.stringi
 })), null, 2)}` : ''}
 
 RULES:
-- Give SHORT, DIRECT answers (3-5 sentences max)
-- Do NOT show your thinking process or checklists
-- Be data-driven but brief — use numbers, not paragraphs
-- Proactively mention critical low stock items
-- When owner wants to order, ask them to say: "confirm order [qty] units of [product]"`;
+- Be data-driven -- include specific numbers (stock qty, sales count, revenue)
+- Format data clearly with line breaks between sections
+- Proactively mention critical low stock items and suggest reorder quantities
+- When owner wants to order, tell them to type: "confirm order [qty] units of [product]"
+- If discussing sales trends, mention top sellers and slow movers
+- Do NOT use markdown formatting like ** or ## -- use plain text only`;
 }
 
 // ─── Order Management (updates MongoDB) ───────────────────────────────────────
 async function placeOrder(storeId, product, quantity) {
-  // Try CornerStore first
-  let store = await CornerStore.findById(storeId);
-  let storeName = store?.name;
-
-  if (!store) {
-    // Fallback to simple Store
-    store = await Store.findById(storeId);
-    storeName = store?.name;
-  }
-  if (!store) return { success: false, message: 'Store not found.' };
-
   const normalizedProduct = product.toLowerCase();
   const qty = parseInt(quantity);
 
-  // Try updating Inventory collection first
+  // Try Inventory collection first (detailed schema)
   const invDoc = await Inventory.findOne({
-    storeId: store._id,
+    storeId,
     productName: new RegExp(normalizedProduct, 'i')
   });
 
   if (invDoc) {
+    const store = await CornerStore.findById(storeId);
+    const storeName = store?.name || 'Unknown Store';
     await Inventory.updateOne(
       { _id: invDoc._id },
       { $inc: { currentStock: qty }, $set: { lastStockUpdate: new Date() } }
@@ -292,7 +314,7 @@ async function placeOrder(storeId, product, quantity) {
       success: true,
       order: {
         orderId: `ORD-${Date.now()}`,
-        storeId: store._id,
+        storeId,
         storeName,
         product: invDoc.productName,
         quantity: qty,
@@ -305,9 +327,12 @@ async function placeOrder(storeId, product, quantity) {
   }
 
   // Fallback: embedded inventory in simple Store model
+  const store = await Store.findById(storeId);
+  if (!store) return { success: false, message: 'Store not found.' };
+
   const invItem = (store.inventory || []).find(i => i.item?.toLowerCase() === normalizedProduct);
   if (!invItem) {
-    return { success: false, message: `Product "${product}" not found in database.` };
+    return { success: false, message: `Product "${product}" not found in inventory.` };
   }
 
   await Store.updateOne(
@@ -320,7 +345,7 @@ async function placeOrder(storeId, product, quantity) {
     order: {
       orderId: `ORD-${Date.now()}`,
       storeId: store._id,
-      storeName,
+      storeName: store.name,
       product: invItem.item,
       quantity: qty,
       price: invItem.price,
@@ -362,14 +387,102 @@ app.get('/api/lowstock/:storeId', async (req, res) => {
   }
 });
 
+// ─── Chat: submit a food request through chat ───────────────────────────────
+async function handleChatRequest(customerName, item, ward) {
+  const regex = new RegExp(item, 'i');
+
+  const allStores = await Store.find({ 'inventory.item': regex })
+    .then(stores => stores.filter(s => s.inventory.some(inv => regex.test(inv.item) && inv.qty > 0)));
+
+  const sameWard = allStores.filter(s => s.ward === ward);
+  const otherWards = allStores.filter(s => s.ward !== ward);
+  const localStores = await Store.find({ ward });
+  const now = new Date();
+
+  let fulfillment, sourceStore, destinationStore, status, estimatedReady;
+  let originalPrice, transferMarkup, transferPrice, sourceCommission, couponCode, couponAmount;
+
+  if (sameWard.length > 0) {
+    fulfillment = 'pickup';
+    sourceStore = sameWard[0]._id;
+    status = 'reserved';
+    estimatedReady = now;
+  } else if (otherWards.length > 0) {
+    fulfillment = 'transfer';
+    sourceStore = otherWards[0]._id;
+    destinationStore = localStores.length > 0 ? localStores[0]._id : undefined;
+    status = 'pending';
+    estimatedReady = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const stockItem = otherWards[0].inventory.find(inv => regex.test(inv.item));
+    if (stockItem) {
+      originalPrice = stockItem.price;
+      transferMarkup = Math.round(originalPrice * 0.15 * 100) / 100;
+      transferPrice = Math.round((originalPrice + transferMarkup) * 100) / 100;
+      sourceCommission = Math.round(originalPrice * 0.10 * 100) / 100;
+      couponCode = 'SW-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+      couponAmount = transferMarkup;
+    }
+  } else {
+    fulfillment = 'dcck';
+    destinationStore = localStores.length > 0 ? localStores[0]._id : undefined;
+    status = 'pending';
+    estimatedReady = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+  }
+
+  const Coupon = require('./models/Coupon');
+  const request = await Request.create({
+    customerName, item, ward,
+    matched: fulfillment !== 'dcck',
+    fulfillment, sourceStore, destinationStore,
+    status, estimatedReady,
+    originalPrice, transferMarkup, transferPrice,
+    sourceCommission, couponCode, couponAmount
+  });
+
+  if (fulfillment === 'transfer' && couponCode) {
+    await Coupon.create({ customerName, code: couponCode, amount: couponAmount, type: 'transfer', request: request._id, store: destinationStore });
+  }
+
+  await request.populate('sourceStore', 'name address ward');
+  await request.populate('destinationStore', 'name address ward');
+
+  // Build human-readable response
+  const orderId = request._id.toString().slice(-6).toUpperCase();
+  if (fulfillment === 'pickup') {
+    const s = sameWard[0];
+    const stock = s.inventory.find(inv => regex.test(inv.item));
+    return {
+      reply: `Great news! ${item} is available in your ward right now.\n\nPickup at: ${s.name}\nAddress: ${s.address}\nPrice: $${stock.price.toFixed(2)} each\nIn stock: ${stock.qty} units\nStatus: Reserved for you\n\nOrder #${orderId} -- pick up within 2 hours.`,
+      fulfillment: 'pickup',
+      request: { id: orderId, status: 'reserved' }
+    };
+  } else if (fulfillment === 'transfer') {
+    const s = otherWards[0];
+    const stock = s.inventory.find(inv => regex.test(inv.item));
+    const dest = request.destinationStore;
+    return {
+      reply: `Found ${item} at ${s.name} (Ward ${s.ward}). We'll transfer it to your local store.\n\nFrom: ${s.name} (Ward ${s.ward})\nTo: ${dest ? dest.name : 'your local store'} (Ward ${ward})\n\nPrice: $${originalPrice.toFixed(2)} + $${transferMarkup.toFixed(2)} transfer fee = $${transferPrice.toFixed(2)}\nYou'll get a $${couponAmount.toFixed(2)} coupon: ${couponCode}\nEffective price: $${originalPrice.toFixed(2)}\n\nEstimated ready: tomorrow\nOrder #${orderId}`,
+      fulfillment: 'transfer',
+      request: { id: orderId, status: 'pending', couponCode, couponAmount }
+    };
+  } else {
+    const dest = request.destinationStore;
+    return {
+      reply: `${item} isn't available at any store right now, but we've submitted a request to DCCK (DC Central Kitchen).\n\n${dest ? `It will be delivered to ${dest.name} (${dest.address}) in Ward ${ward}.` : `It will be delivered to a store in Ward ${ward}.`}\n\nEstimated delivery: about 5 days\nOrder #${orderId}\n\nTip: Vote for ${item} on the Community Board to help prioritize it!`,
+      fulfillment: 'dcck',
+      request: { id: orderId, status: 'pending' }
+    };
+  }
+}
+
 // ─── Chat Endpoint ────────────────────────────────────────────────────────────
 app.post('/api/chat', async (req, res) => {
-  const { message, role, storeId } = req.body;
+  const { message, role, storeId, history } = req.body;
   if (!message) return res.status(400).json({ error: 'Message is required' });
 
   const t = message.toLowerCase();
 
-  // Handle order placement directly (owner mode)
+  // ── Owner: handle order placement ──
   if (role === 'owner' && (t.includes('confirm order') || t.includes('yes, order') || t.includes('place the order'))) {
     const match = t.match(/(\d+)\s*(?:units?|pcs?)?\s*(?:of\s+)?([a-z\s]+?)(?:\s+for\s+store\s+(.+))?$/i);
     if (match) {
@@ -379,8 +492,41 @@ app.post('/api/chat', async (req, res) => {
       const result = await placeOrder(sid, product, quantity);
       if (result.success) {
         return res.json({
-          reply: `✅ Order placed successfully!\n\nOrder ID: ${result.order.orderId}\nProduct: ${result.order.product}\nQuantity: ${result.order.quantity} units\nStore: ${result.order.storeName}\nTotal Cost: $${result.order.totalCost.toFixed(2)}\nStatus: ${result.order.status}`,
+          reply: `Order placed successfully!\n\nOrder ID: ${result.order.orderId}\nProduct: ${result.order.product}\nQuantity: ${result.order.quantity} units\nStore: ${result.order.storeName}\nTotal Cost: $${result.order.totalCost.toFixed(2)}\nStatus: ${result.order.status}`,
           order: result.order
+        });
+      }
+      return res.json({
+        reply: `Could not place order: ${result.message}\n\nPlease check the product name and try again.`
+      });
+    }
+  }
+
+  // ── Customer: handle item request through chat ──
+  if (role === 'customer') {
+    // Match patterns like "request yuca for ward 7", "I need plantains in ward 8", "get me bananas ward 5"
+    const requestMatch = t.match(/(?:request|order|get me|i need|i want|can i get)\s+(.+?)(?:\s+(?:for|in|from|ward)\s*(\d))?$/i);
+    if (requestMatch) {
+      const item = requestMatch[1].replace(/\s*(for|in|from|ward)\s*\d*$/, '').replace(/^to\s+(request|order|get)\s+/i, '').trim();
+      const ward = requestMatch[2] ? Number(requestMatch[2]) : null;
+
+      if (item && ward) {
+        try {
+          const result = await handleChatRequest('Chat Customer', item, ward);
+          return res.json(result);
+        } catch (err) {
+          console.error('Request error:', err.message);
+        }
+      }
+      // If no ward specified, ask for it
+      if (item && !ward) {
+        return res.json({
+          reply: `I can submit a request for "${item}" for you. Which ward are you in?`,
+          actions: [
+            { label: `Ward 5`, action: `request ${item} in ward 5` },
+            { label: `Ward 7`, action: `request ${item} in ward 7` },
+            { label: `Ward 8`, action: `request ${item} in ward 8` }
+          ]
         });
       }
     }
@@ -392,11 +538,27 @@ app.post('/api/chat', async (req, res) => {
       : await buildCustomerContext();
 
     const fullMessage = role === 'owner'
-      ? `${message}\n\n[If the owner wants to place an order, ask them to confirm by saying: "confirm order [quantity] units of [product]". Always mention low stock items proactively.]`
-      : message;
+      ? `${message}\n\n[If the owner wants to place an order, suggest they say: "confirm order [quantity] units of [product]". Always mention low stock items proactively.]`
+      : `${message}\n\n[If the item the customer asks about is NOT available anywhere, tell them they can type "request [item] in ward [number]" to submit a request and we will get it for them through our 3-tier fulfillment system.]`;
 
-    const reply = await askGemini(context, fullMessage);
-    res.json({ reply });
+    const reply = await askGemini(context, fullMessage, history || []);
+
+    // For owner mode: detect low stock items and suggest reorder actions
+    const response = { reply };
+    if (role === 'owner' && storeId) {
+      const store = await Store.findById(storeId);
+      if (store) {
+        const lowItems = (store.inventory || []).filter(i => i.qty < 10);
+        if (lowItems.length > 0 && (t.includes('low') || t.includes('restock') || t.includes('reorder') || t.includes('running'))) {
+          response.actions = lowItems.slice(0, 4).map(i => ({
+            label: `Reorder ${i.item} (${i.qty} left)`,
+            action: `confirm order ${Math.max(20, 30 - i.qty)} units of ${i.item}`
+          }));
+        }
+      }
+    }
+
+    res.json(response);
   } catch (err) {
     console.error('Gemini error:', err.message);
     res.status(500).json({ error: 'AI service error: ' + err.message });
@@ -429,7 +591,7 @@ async function start() {
   if (mongoose.connection.readyState !== 1) {
     await mongoose.connect(uri);
   }
-  console.log('✅ Connected to MongoDB');
+  console.log('Connected to MongoDB');
 
   // Auto-seed if database is empty (check both schemas)
   const cornerCount = await CornerStore.countDocuments();
@@ -440,7 +602,7 @@ async function start() {
   }
 
   app.listen(PORT, async () => {
-    console.log(`\n✅ Grocery Chatbot (Gemini AI + MongoDB) running at http://localhost:${PORT}\n`);
+    console.log(`\nStockWise running at http://localhost:${PORT}\n`);
 
     // Show data summary
     const cs = await CornerStore.countDocuments();
