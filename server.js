@@ -32,6 +32,7 @@ app.use('/api/search', require('./routes/search'));
 app.use('/api/votes', require('./routes/votes'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/demand', require('./routes/demand'));
+app.use('/api/items', require('./routes/items'));
 
 // ─── Gemini AI Helper (supports conversation history) ────────────────────────
 async function askGemini(systemContext, userMessage, history) {
