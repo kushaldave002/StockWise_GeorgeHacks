@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Grocery Assistant</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0f2f5; display: flex; justify-content: center;
+      align-items: center; min-height: 100vh; padding: 16px;
+    }
+    #app {
+      width: 100%; max-width: 500px; height: 720px;
+      background: #fff; border-radius: 20px;
+      box-shadow: 0 4px 32px rgba(0,0,0,0.12);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+
+    /* Header */
+    #header {
+      padding: 14px 16px 0;
+      background: #fff;
+      border-bottom: 1px solid #eee;
+    }
+    #top-row {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+    }
+    .avatar {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: #e8f5e9; color: #2e7d32;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 14px; flex-shrink: 0;
+    }
+    .bot-name { font-size: 15px; font-weight: 700; color: #111; }
+    .bot-sub  { font-size: 11px; color: #888; margin-top: 1px; }
+    .info { flex: 1; }
+    #role-toggle { display: flex; gap: 6px; }
+    .role-btn {
+      font-size: 12px; padding: 5px 14px;
+      border: 1.5px solid #ddd; border-radius: 20px;
+      cursor: pointer; background: #fff; color: #666;
+      transition: all 0.15s; font-weight: 500;
+    }
+    .role-btn.active { background: #e3f2fd; color: #1565c0; border-color: #90caf9; }
+
+    /* Store selector (owner only) */
+    #store-selector {
+      display: none; padding: 8px 0 10px; gap: 8px; flex-wrap: wrap;
+    }
+    #store-selector.visible { display: flex; }
+    .store-chip {
+      font-size: 11px; padding: 4px 12px;
+      border: 1px solid #ddd; border-radius: 20px;
+      cursor: pointer; background: #fff; color: #555;
+      transition: all 0.15s;
+    }
+    .store-chip.active { background: #1565c0; color: #fff; border-color: #1565c0; }
+
+    /* Messages */
+    #messages {
+      flex: 1; overflow-y: auto; padding: 16px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .msg { display: flex; gap: 8px; max-width: 88%; }
+    .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+    .bubble {
+      padding: 10px 14px; border-radius: 18px;
+      font-size: 13.5px; line-height: 1.6;
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .msg.bot  .bubble { background: #f5f5f5; color: #222; border-bottom-left-radius: 4px; }
+    .msg.user .bubble { background: #1565c0; color: #fff; border-bottom-right-radius: 4px; }
+    .msg .icon {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 2px;
+    }
+    .msg.bot  .icon { background: #e8f5e9; color: #2e7d32; }
+    .msg.user .icon { background: #bbdefb; color: #1565c0; }
+
+    /* Order card */
+    .order-card {
+      background: #e8f5e9; border: 1px solid #a5d6a7;
+      border-radius: 12px; padding: 10px 14px;
+      font-size: 13px; color: #1b5e20; margin-top: 4px;
+    }
+    .order-card .order-title { font-weight: 700; margin-bottom: 4px; font-size: 14px; }
+
+    /* Typing */
+    .typing-wrap { display: flex; gap: 8px; }
+    .typing {
+      display: flex; gap: 4px; align-items: center;
+      padding: 10px 14px; background: #f5f5f5;
+      border-radius: 18px; border-bottom-left-radius: 4px;
+    }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: #aaa; animation: blink 1.2s infinite; }
+    .dot:nth-child(2){animation-delay:.2s} .dot:nth-child(3){animation-delay:.4s}
+    @keyframes blink{0%,80%,100%{opacity:.3}40%{opacity:1}}
+
+    /* Alert banner */
+    #alert-banner {
+      display: none; margin: 0 14px 8px;
+      background: #fff8e1; border: 1px solid #ffe082;
+      border-radius: 10px; padding: 8px 12px;
+      font-size: 12px; color: #e65100; cursor: pointer;
+    }
+    #alert-banner.visible { display: block; }
+    #alert-banner .alert-title { font-weight: 700; margin-bottom: 2px; }
+
+    /* Suggestions */
+    #suggestions { display: flex; gap: 6px; padding: 0 14px 8px; flex-wrap: wrap; }
+    .chip {
+      font-size: 12px; padding: 5px 12px;
+      border: 1px solid #ddd; border-radius: 20px;
+      cursor: pointer; background: #fff; color: #555;
+      white-space: nowrap; transition: background 0.15s;
+    }
+    .chip:hover { background: #f5f5f5; }
+
+    /* Input */
+    #input-row {
+      display: flex; gap: 8px; padding: 12px 14px;
+      border-top: 1px solid #eee; background: #fafafa;
+      align-items: center;
+    }
+    #user-input {
+      flex: 1; font-size: 14px; padding: 10px 16px;
+      border: 1.5px solid #ddd; border-radius: 24px;
+      outline: none; background: #fff; color: #111;
+      transition: border 0.15s;
+    }
+    #user-input:focus { border-color: #1565c0; }
+    #send-btn {
+      width: 42px; height: 42px; border-radius: 50%;
+      border: none; background: #1565c0; color: #fff;
+      cursor: pointer; font-size: 18px; display: flex;
+      align-items: center; justify-content: center;
+      transition: background 0.15s; flex-shrink: 0;
+    }
+    #send-btn:hover { background: #0d47a1; }
+    #send-btn:disabled { background: #ccc; cursor: not-allowed; }
+
+    /* Powered by */
+    #powered-by {
+      text-align: center; font-size: 10px; color: #bbb;
+      padding: 4px 0 6px; background: #fafafa;
+    }
+
+    #messages::-webkit-scrollbar { width: 4px; }
+    #messages::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <div id="top-row">
+      <div class="avatar">GB</div>
+      <div class="info">
+        <div class="bot-name">Grocery Assistant</div>
+        <div class="bot-sub" id="role-label">Customer mode · Powered by Gemini AI</div>
+      </div>
+      <div id="role-toggle">
+        <button class="role-btn active" onclick="setRole('customer')">Customer</button>
+        <button class="role-btn" onclick="setRole('owner')">Store Owner</button>
+      </div>
+    </div>
+    <div id="store-selector">
+      <span style="font-size:11px;color:#888;align-self:center;">Select store:</span>
+      <span id="store-chips">Loading stores...</span>
+    </div>
+  </div>
+
+  <div id="alert-banner" onclick="handleAlertClick()">
+    <div class="alert-title">⚠️ Low stock alert</div>
+    <div id="alert-text"></div>
+  </div>
+
+  <div id="messages"></div>
+  <div id="suggestions"></div>
+
+  <div id="input-row">
+    <input type="text" id="user-input" placeholder="Ask anything about groceries..." onkeydown="if(event.key==='Enter')sendMsg()"/>
+    <button id="send-btn" onclick="sendMsg()">&#9658;</button>
+  </div>
+  <div id="powered-by">Powered by Google Gemini 2.0 Flash Lite</div>
+</div>
+
+<script>
+  let currentRole = 'customer';
+  let currentStoreId = null;
+  let storesLoaded = [];
+
+  const suggestionSets = {
+    customer: [
+      "Is milk available nearby?",
+      "Find nearest grocery store",
+      "Where can I get organic eggs?",
+      "How much does bread cost?"
+    ],
+    owner: [
+      "Show milk sales this week",
+      "Which products are running low?",
+      "Should I restock eggs?",
+      "Place an order for milk"
+    ]
+  };
+
+  function renderSuggestions() {
+    document.getElementById('suggestions').innerHTML =
+      suggestionSets[currentRole].map(s =>
+        `<button class="chip" onclick="quickSend('${s}')">${s}</button>`
+      ).join('');
+  }
+
+  async function checkLowStock(storeId) {
+    try {
+      const res = await fetch(`/api/lowstock/${storeId}`);
+      const alerts = await res.json();
+      const banner = document.getElementById('alert-banner');
+      if (alerts.length > 0) {
+        const outOfStock = alerts.filter(a => a.qty === 0);
+        const low = alerts.filter(a => a.qty > 0);
+        let text = '';
+        if (outOfStock.length) text += `Out of stock: ${outOfStock.map(a=>a.product).join(', ')}. `;
+        if (low.length) text += `Low: ${low.map(a=>`${a.product}(${a.qty})`).join(', ')}.`;
+        document.getElementById('alert-text').textContent = text + ' Click to reorder.';
+        banner.classList.add('visible');
+      } else {
+        banner.classList.remove('visible');
+      }
+    } catch(e) {}
+  }
+
+  function handleAlertClick() {
+    quickSend('Which products are running low and should I reorder them?');
+  }
+
+  function selectStore(id, btn) {
+    currentStoreId = id;
+    document.querySelectorAll('.store-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    checkLowStock(id);
+    appendMsg('bot', `Switched to store ${id}. How can I help you with this store?`);
+  }
+
+  function setRole(role) {
+    currentRole = role;
+    document.querySelectorAll('.role-btn').forEach(b =>
+      b.classList.toggle('active', b.textContent.toLowerCase() === role)
+    );
+    document.getElementById('role-label').textContent =
+      role === 'customer' ? 'Customer mode · Powered by Gemini AI' : 'Store owner mode · Powered by Gemini AI';
+    document.getElementById('store-selector').classList.toggle('visible', role === 'owner');
+    document.getElementById('alert-banner').classList.remove('visible');
+    renderSuggestions();
+    document.getElementById('messages').innerHTML = '';
+
+    if (role === 'owner') {
+      checkLowStock(currentStoreId);
+      appendMsg('bot', `Welcome, store owner! I'm connected to your live inventory and sales data.\n\nI can help you with:\n• Sales trends & 7-day history\n• Low stock alerts & restock recommendations\n• Placing orders on your behalf\n\nWhich store are you managing? (Select above or just ask me anything!)`);
+    } else {
+      appendMsg('bot', `Hi! I'm your AI-powered Grocery Assistant.\n\nI can help you:\n• Check if a product is available nearby\n• Find the nearest grocery store\n• Suggest alternatives if something is out of stock\n• Check product prices\n\nWhat do you need today?`);
+    }
+  }
+
+  function appendMsg(role, text, orderData) {
+    const msgs = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = `msg ${role}`;
+
+    let content = `<div class="bubble">${text.replace(/\n/g,'<br>')}</div>`;
+
+    if (orderData) {
+      content += `
+        <div class="order-card" style="margin-left: 36px; margin-top: -8px;">
+          <div class="order-title">Order Confirmed</div>
+          Order ID: ${orderData.orderId}<br>
+          Product: ${orderData.product}<br>
+          Quantity: ${orderData.quantity} units<br>
+          Store: ${orderData.storeName}<br>
+          Total Cost: $${orderData.totalCost.toFixed(2)}<br>
+          Status: ${orderData.status}
+        </div>`;
+    }
+
+    div.innerHTML = `<div class="icon">${role === 'bot' ? 'G' : 'U'}</div>${content}`;
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function showTyping() {
+    const msgs = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.id = 'typing-indicator'; div.className = 'typing-wrap';
+    div.innerHTML = `
+      <div class="icon" style="background:#e8f5e9;color:#2e7d32;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;margin-top:2px;">G</div>
+      <div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function removeTyping() { document.getElementById('typing-indicator')?.remove(); }
+
+  function quickSend(text) {
+    document.getElementById('user-input').value = text;
+    sendMsg();
+  }
+
+  async function sendMsg() {
+    const input = document.getElementById('user-input');
+    const btn = document.getElementById('send-btn');
+    const text = input.value.trim();
+    if (!text) return;
+
+    appendMsg('user', text);
+    input.value = '';
+    btn.disabled = true;
+    showTyping();
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text, role: currentRole, storeId: currentStoreId })
+      });
+      const data = await res.json();
+      removeTyping();
+
+      if (data.error) {
+        appendMsg('bot', 'Error: ' + data.error);
+      } else {
+        appendMsg('bot', data.reply, data.order || null);
+        // Refresh low stock if owner placed an order
+        if (currentRole === 'owner' && data.order) {
+          checkLowStock(currentStoreId);
+        }
+      }
+    } catch (err) {
+      removeTyping();
+      appendMsg('bot', 'Could not reach server. Make sure the backend is running:\n\nnpm start');
+    }
+
+    btn.disabled = false;
+    input.focus();
+  }
+
+  // Load stores from MongoDB and init
+  async function loadStores() {
+    try {
+      const res = await fetch('/api/stores');
+      storesLoaded = await res.json();
+      if (storesLoaded.length > 0) {
+        currentStoreId = storesLoaded[0]._id;
+        const chipsHtml = storesLoaded.map((s, i) =>
+          `<button class="store-chip${i === 0 ? ' active' : ''}" onclick="selectStore('${s._id}', this)">${s.name}</button>`
+        ).join('');
+        document.getElementById('store-chips').innerHTML = chipsHtml;
+      }
+    } catch (e) {
+      document.getElementById('store-chips').innerHTML = '<span style="color:#c62828;font-size:11px">Could not load stores</span>';
+    }
+    setRole('customer');
+  }
+
+  loadStores();
+</script>
+</body>
+</html>

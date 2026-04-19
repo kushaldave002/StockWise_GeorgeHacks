@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Store Tablet - StockWise</title>
+  <link href="https://cdn.jsdelivr.net/npm/@fontsource/cascadia-code@latest/index.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/" class="nav-logo">Stock<span>Wise</span></a>
+    <div class="nav-links">
+      <a href="/customer">Find Food</a>
+      <a href="/tablet" class="active">Store Tablet</a>
+      <a href="/dashboard">DCCK Dashboard</a>
+      <a href="/community">Community Board</a>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h1>Store Tablet</h1>
+      <p>Your register companion — record every sale and your inventory updates across the entire StockWise network in real time.</p>
+    </div>
+
+    <!-- WHY THIS MATTERS -->
+    <div class="card" style="margin-bottom:2rem;background:var(--accent-glow);border:1px solid rgba(0,212,123,0.2)">
+      <h3 style="color:var(--accent);margin-bottom:0.5rem">Why record sales here?</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;font-size:0.8rem">
+        <div>
+          <strong style="color:var(--text)">Accurate stock for customers</strong>
+          <p style="color:var(--text-secondary);margin:0.25rem 0 0">When you log a sale, customers searching for that item see real availability -- not outdated numbers.</p>
+        </div>
+        <div>
+          <strong style="color:var(--text)">SNAP tracking for DCCK</strong>
+          <p style="color:var(--text-secondary);margin:0.25rem 0 0">Every SNAP sale you record feeds the DCCK dashboard, helping them measure program impact and direct funding.</p>
+        </div>
+        <div>
+          <strong style="color:var(--text)">Know what sells</strong>
+          <p style="color:var(--text-secondary);margin:0.25rem 0 0">Your sales history shows which items move fast and which sit -- so you restock what your neighborhood actually buys.</p>
+        </div>
+        <div>
+          <strong style="color:var(--text)">Reduce waste, earn more</strong>
+          <p style="color:var(--text-secondary);margin:0.25rem 0 0">List excess stock on the marketplace before it spoils. Customers from other wards get matched to your listings.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Store selector -->
+    <div class="form-group" style="max-width:400px;margin-bottom:2rem">
+      <label>Select Your Store</label>
+      <select id="storeSelect" onchange="onStoreChange()">
+        <option value="">Choose store...</option>
+      </select>
+    </div>
+
+    <div class="two-col">
+      <!-- RECORD SALE -->
+      <div>
+        <div class="section">
+          <h2 class="section-title">Record a Sale</h2>
+          <div class="card">
+            <form id="saleForm">
+              <div class="form-group">
+                <label>Item</label>
+                <select id="saleItem" required>
+                  <option value="">Select item...</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Quantity</label>
+                <div style="display:flex;gap:0.5rem;align-items:center">
+                  <button type="button" class="btn btn-secondary" onclick="adjustQty(-1)" style="padding:0.5rem 1rem;font-size:1.2rem">-</button>
+                  <input type="number" id="saleQty" value="1" min="1" style="text-align:center;width:80px">
+                  <button type="button" class="btn btn-secondary" onclick="adjustQty(1)" style="padding:0.5rem 1rem;font-size:1.2rem">+</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Customer Name (optional)</label>
+                <input type="text" id="saleCustName" placeholder="For SNAP coupon tracking">
+              </div>
+              <div class="form-group">
+                <div class="toggle-wrapper">
+                  <label class="toggle">
+                    <input type="checkbox" id="saleSnap">
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span style="font-weight:600">SNAP/EBT Payment</span>
+                  <span class="badge badge-snap">SNAP</span>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary btn-large btn-block" style="margin-top:1rem">Record Sale</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- LIST EXCESS STOCK -->
+        <div class="section">
+          <h2 class="section-title">List Excess Stock</h2>
+          <div class="card">
+            <p style="color:var(--text-secondary);margin-bottom:1rem;font-size:0.9rem">Have stock that might spoil? List it on the marketplace at a discount.</p>
+            <form id="listingForm">
+              <div class="form-group">
+                <label>Item</label>
+                <input type="text" id="listItem" placeholder="e.g., Bananas" required>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                <div class="form-group">
+                  <label>Quantity</label>
+                  <input type="number" id="listQty" min="1" value="5" required>
+                </div>
+                <div class="form-group">
+                  <label>Discounted Price ($)</label>
+                  <input type="number" id="listPrice" step="0.01" min="0" placeholder="0.49" required>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Sell By Date</label>
+                <input type="date" id="listExpiry" required>
+              </div>
+              <button type="submit" class="btn btn-accent btn-block">List on Marketplace</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- CURRENT INVENTORY -->
+      <div>
+        <div class="section">
+          <h2 class="section-title">Current Inventory</h2>
+          <div class="card" id="inventoryCard">
+            <p class="loading"><span class="spinner"></span><br>Select a store to view inventory</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SALES HISTORY -->
+    <div class="section" style="margin-top:1rem">
+      <h2 class="section-title">Sales History</h2>
+      <div id="salesHistorySection" style="display:none">
+        <!-- Summary stats -->
+        <div class="stat-grid" id="salesStats"></div>
+
+        <div class="two-col" style="margin-bottom:1.5rem">
+          <!-- Top items chart -->
+          <div class="chart-container">
+            <h3 style="margin-bottom:1rem;color:var(--text)">Top Selling Items (Last 14 Days)</h3>
+            <canvas id="topItemsChart"></canvas>
+          </div>
+          <!-- SNAP breakdown -->
+          <div class="chart-container">
+            <h3 style="margin-bottom:1rem;color:var(--text)">Payment Breakdown</h3>
+            <canvas id="snapBreakdownChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Recent transactions table -->
+        <div class="card" style="overflow-x:auto">
+          <h3 style="margin-bottom:1rem;color:var(--text)">Recent Transactions</h3>
+          <table>
+            <thead>
+              <tr><th>Date</th><th>Item</th><th>Qty</th><th>Price</th><th>Total</th><th>Payment</th></tr>
+            </thead>
+            <tbody id="salesTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="salesHistoryEmpty" class="card">
+        <p style="text-align:center;color:var(--text-secondary);padding:1rem">Select a store to view its sales history.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script src="/js/tablet.js"></script>
+</body>
+</html>
