@@ -37,8 +37,19 @@
           <option value="8">Ward 8</option>
         </select>
         <button class="btn btn-primary" onclick="doSearch()">Search</button>
+        <button class="btn btn-secondary" onclick="clearSearch()">Browse All</button>
       </div>
       <div id="searchResults"></div>
+    </div>
+
+    <!-- BROWSE TABS (shown when not searching) -->
+    <div class="section" id="browseSection">
+      <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;border-bottom:1px solid var(--border);padding-bottom:0.75rem">
+        <button class="btn btn-primary" id="tabItems" onclick="switchTab('items')">Browse by Item</button>
+        <button class="btn btn-secondary" id="tabStores" onclick="switchTab('stores')">Browse by Store</button>
+      </div>
+      <div id="browseItems"></div>
+      <div id="browseStores" style="display:none"></div>
     </div>
 
     <!-- REQUEST FORM -->
