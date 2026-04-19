@@ -168,7 +168,10 @@
     </div>
     <div id="store-selector">
       <span style="font-size:11px;color:#888;align-self:center;">Select store:</span>
-      <span id="store-chips">Loading stores...</span>
+      <button class="store-chip active" onclick="selectStore(1, this)">FreshMart</button>
+      <button class="store-chip" onclick="selectStore(2, this)">GreenGrocer</button>
+      <button class="store-chip" onclick="selectStore(3, this)">QuickShop</button>
+      <button class="store-chip" onclick="selectStore(4, this)">OrganicWorld</button>
     </div>
   </div>
 
@@ -184,13 +187,12 @@
     <input type="text" id="user-input" placeholder="Ask anything about groceries..." onkeydown="if(event.key==='Enter')sendMsg()"/>
     <button id="send-btn" onclick="sendMsg()">&#9658;</button>
   </div>
-  <div id="powered-by">Powered by Google Gemini 2.0 Flash Lite</div>
+  <div id="powered-by">Powered by Google Gemini 1.5 Flash</div>
 </div>
 
 <script>
   let currentRole = 'customer';
-  let currentStoreId = null;
-  let storesLoaded = [];
+  let currentStoreId = 1;
 
   const suggestionSets = {
     customer: [
@@ -346,25 +348,8 @@
     input.focus();
   }
 
-  // Load stores from MongoDB and init
-  async function loadStores() {
-    try {
-      const res = await fetch('/api/stores');
-      storesLoaded = await res.json();
-      if (storesLoaded.length > 0) {
-        currentStoreId = storesLoaded[0]._id;
-        const chipsHtml = storesLoaded.map((s, i) =>
-          `<button class="store-chip${i === 0 ? ' active' : ''}" onclick="selectStore('${s._id}', this)">${s.name}</button>`
-        ).join('');
-        document.getElementById('store-chips').innerHTML = chipsHtml;
-      }
-    } catch (e) {
-      document.getElementById('store-chips').innerHTML = '<span style="color:#c62828;font-size:11px">Could not load stores</span>';
-    }
-    setRole('customer');
-  }
-
-  loadStores();
+  // Init
+  setRole('customer');
 </script>
 </body>
 </html>
