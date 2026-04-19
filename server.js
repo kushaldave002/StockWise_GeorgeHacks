@@ -125,6 +125,115 @@ async function getSalesForStore(storeId) {
   }));
 }
 
+async function buildOwnerInsights(storeId) {
+  const stores = await getAllStoresWithInventory();
+  let store = stores.find(s => s.id.toString() === storeId?.toString());
+  if (!store && stores.length > 0) store = stores[0];
+  if (!store) return { reply: 'I could not find a store to analyze yet.' };
+
+  const weeklySales = await getSalesForStore(store.id);
+  const openRequests = await Request.find({
+    ward: store.ward,
+    status: { $nin: ['completed', 'cancelled'] }
+  }).sort({ timestamp: -1 }).catch(() => []);
+
+  const inventory = store.inventory || [];
+  const salesByItem = new Map(
+    weeklySales.map(sale => [
+      sale.item.toLowerCase(),
+      {
+        item: sale.item,
+        weeklyQty: Number(sale.weeklyQty) || 0,
+        weeklyRevenue: Number(sale.weeklyRevenue) || 0
+      }
+    ])
+  );
+
+  const demandByItem = new Map();
+  openRequests.forEach(request => {
+    const key = (request.item || '').trim().toLowerCase();
+    if (!key) return;
+    const current = demandByItem.get(key) || { item: request.item.trim(), count: 0 };
+    current.count += 1;
+    demandByItem.set(key, current);
+  });
+
+  const inventoryWithSales = inventory.map(item => {
+    const sold = salesByItem.get(item.item.toLowerCase()) || { weeklyQty: 0, weeklyRevenue: 0 };
+    const unmet = demandByItem.get(item.item.toLowerCase())?.count || 0;
+    const targetStock = Math.max(12, sold.weeklyQty + unmet * 2 + (item.qty === 0 ? 6 : 0));
+    const recommendedOrder = Math.max(0, targetStock - item.qty);
+    return {
+      item: item.item,
+      qty: item.qty,
+      weeklyQty: sold.weeklyQty,
+      weeklyRevenue: sold.weeklyRevenue,
+      unmetDemand: unmet,
+      recommendedOrder
+    };
+  });
+
+  const topSellers = [...inventoryWithSales]
+    .filter(item => item.weeklyQty > 0)
+    .sort((a, b) => b.weeklyQty - a.weeklyQty || b.weeklyRevenue - a.weeklyRevenue)
+    .slice(0, 5);
+
+  const leastSold = [...inventoryWithSales]
+    .filter(item => item.weeklyQty > 0)
+    .sort((a, b) => a.weeklyQty - b.weeklyQty || a.weeklyRevenue - b.weeklyRevenue)
+    .slice(0, 5);
+
+  const unsold = inventoryWithSales
+    .filter(item => item.weeklyQty === 0)
+    .slice(0, 5);
+
+  const outOfStock = inventoryWithSales
+    .filter(item => item.qty === 0)
+    .slice(0, 5);
+
+  const unmetDemand = [...demandByItem.values()]
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
+  const reorderCandidates = [...inventoryWithSales]
+    .filter(item => item.recommendedOrder > 0 && (item.weeklyQty > 0 || item.unmetDemand > 0 || item.qty < 8))
+    .sort((a, b) => b.recommendedOrder - a.recommendedOrder || b.weeklyQty - a.weeklyQty)
+    .slice(0, 4);
+
+  const lines = [
+    `Here are your last 7 days insights for ${store.name}.`,
+    '',
+    topSellers.length
+      ? `Most sold: ${topSellers.map(item => `${item.item} (${item.weeklyQty} sold, $${item.weeklyRevenue.toFixed(2)})`).join(', ')}.`
+      : 'Most sold: No sales recorded in the last 7 days.',
+    leastSold.length
+      ? `Slow movers: ${leastSold.map(item => `${item.item} (${item.weeklyQty} sold)`).join(', ')}.`
+      : 'Slow movers: No slow movers yet because there were no recorded sales.',
+    unsold.length
+      ? `Not sold this week: ${unsold.map(item => `${item.item} (${item.qty} on hand)`).join(', ')}.`
+      : 'Not sold this week: Every current inventory item had at least one recorded sale.',
+    outOfStock.length
+      ? `Out of stock: ${outOfStock.map(item => item.item).join(', ')}.`
+      : 'Out of stock: None.',
+    unmetDemand.length
+      ? `Demand not fulfilled: ${unmetDemand.map(item => `${item.item} (${item.count} open requests)`).join(', ')}.`
+      : 'Demand not fulfilled: No open unfulfilled requests in your ward.',
+    reorderCandidates.length
+      ? `Reorder now: ${reorderCandidates.map(item => `${item.item} (+${item.recommendedOrder}, ${item.qty} left, ${item.weeklyQty} sold)`).join(', ')}.`
+      : 'Reorder now: Nothing urgent based on this week\'s sales and open demand.',
+    '',
+    'If you want me to place a replenishment order, just say: place order [quantity] units of [product].'
+  ];
+
+  return {
+    reply: lines.join('\n'),
+    actions: reorderCandidates.map(item => ({
+      label: `Place order: ${item.item} (+${item.recommendedOrder})`,
+      action: `place order ${item.recommendedOrder} units of ${item.item}`
+    }))
+  };
+}
+
 // ─── Build context from MongoDB for Gemini ────────────────────────────────────
 async function buildCustomerContext() {
   const stores = await getAllStoresWithInventory();
@@ -213,7 +322,7 @@ RULES:
 - Be data-driven -- include specific numbers (stock qty, sales count, revenue)
 - Format data clearly with line breaks between sections
 - Proactively mention critical low stock items and suggest reorder quantities
-- When owner wants to order, tell them to type: "confirm order [qty] units of [product]"
+- When owner wants to order, tell them to type: "place order [qty] units of [product]"
 - If discussing sales trends, mention top sellers and slow movers
 - Do NOT use markdown formatting like ** or ## -- use plain text only`;
 }
@@ -363,8 +472,12 @@ app.post('/api/chat', verifyToken, async (req, res) => {
 
   const t = message.toLowerCase();
 
+  if (role === 'owner' && storeId && (t === 'insight' || t === 'insights' || t.includes('reorder') || t.includes('redorder') || t.includes('restock'))) {
+    return res.json(await buildOwnerInsights(storeId));
+  }
+
   // ── Owner: handle order placement ──
-  if (role === 'owner' && (t.includes('confirm order') || t.includes('yes, order') || t.includes('place the order'))) {
+  if (role === 'owner' && (t.includes('confirm order') || t.includes('yes, order') || t.includes('place the order') || t.includes('place order'))) {
     const match = t.match(/(\d+)\s*(?:units?|pcs?)?\s*(?:of\s+)?([a-z\s]+?)(?:\s+for\s+store\s+(.+))?$/i);
     if (match) {
       const quantity = match[1];
@@ -419,7 +532,7 @@ app.post('/api/chat', verifyToken, async (req, res) => {
       : await buildCustomerContext();
 
     const fullMessage = role === 'owner'
-      ? `${message}\n\n[If the owner wants to place an order, suggest they say: "confirm order [quantity] units of [product]". Always mention low stock items proactively.]`
+      ? `${message}\n\n[If the owner wants to place an order, suggest they say: "place order [quantity] units of [product]". If they ask for insights or reorder help, summarize top sellers, slow movers, unsold products, out-of-stock items, open demand, and recommended reorder quantities.]`
       : `${message}\n\n[If the item the customer asks about is NOT available anywhere, tell them they can type "request [item] in ward [number]" to submit a request and we will get it for them through our 3-tier fulfillment system.]`;
 
     const reply = await askGemini(context, fullMessage, history || []);
@@ -433,7 +546,7 @@ app.post('/api/chat', verifyToken, async (req, res) => {
         if (lowItems.length > 0 && (t.includes('low') || t.includes('restock') || t.includes('reorder') || t.includes('running'))) {
           response.actions = lowItems.slice(0, 4).map(i => ({
             label: `Reorder ${i.item} (${i.qty} left)`,
-            action: `confirm order ${Math.max(20, 30 - i.qty)} units of ${i.item}`
+            action: `place order ${Math.max(20, 30 - i.qty)} units of ${i.item}`
           }));
         }
       }
