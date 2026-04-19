@@ -16,6 +16,9 @@ const Sale = require('./models/Sale');
 const Listing = require('./models/Listing');
 const Request = require('./models/Request');
 const Vote = require('./models/Vote');
+const { summarizeSalesByPeriod, buildTopSellersByPeriod } = require('./utils/sales-insights');
+const { resolveChatIdentity } = require('./utils/chat-auth');
+const { verifyToken } = require('./middleware/auth');
 
 // ─── StockWise API Routes ─────────────────────────────────────────────────────
 app.use('/api/auth', require('./routes/auth'));
@@ -122,13 +125,42 @@ async function getSalesForStore(storeId) {
   }));
 }
 
+async function getHistoricalSalesForStore(storeId) {
+  const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+  const sales = await Sale.find({ store: storeId, date: { $gte: twoWeeksAgo } }).sort({ date: -1 }).lean();
+  const summary = summarizeSalesByPeriod(sales, new Date());
+  const topSellers = buildTopSellersByPeriod(summary, 5);
+
+  return {
+    currentWeek: summary.current.map((sale) => ({
+      item: sale.item,
+      weeklyQty: sale.qty,
+      weeklyRevenue: sale.revenue.toFixed(2),
+      snapPurchases: sale.snapPurchases,
+      trend: sale.qty > 5 ? 'Active' : 'Slow'
+    })),
+    previousWeek: summary.previous.map((sale) => ({
+      item: sale.item,
+      weeklyQty: sale.qty,
+      weeklyRevenue: sale.revenue.toFixed(2),
+      snapPurchases: sale.snapPurchases,
+      trend: sale.qty > 5 ? 'Active' : 'Slow'
+    })),
+    topSellers: {
+      current: topSellers.current,
+      previous: topSellers.previous
+    }
+  };
+}
+
 async function buildOwnerInsights(storeId) {
   const stores = await getAllStoresWithInventory();
   let store = stores.find(s => s.id.toString() === storeId?.toString());
   if (!store && stores.length > 0) store = stores[0];
   if (!store) return { reply: 'I could not find a store to analyze yet.' };
 
-  const weeklySales = await getSalesForStore(store.id);
+  const salesHistory = await getHistoricalSalesForStore(store.id);
+  const weeklySales = salesHistory.currentWeek;
   const openRequests = await Request.find({
     ward: store.ward,
     status: { $nin: ['completed', 'cancelled'] }
@@ -203,6 +235,9 @@ async function buildOwnerInsights(storeId) {
     topSellers.length
       ? `Most sold: ${topSellers.map(item => `${item.item} (${item.weeklyQty} sold, $${item.weeklyRevenue.toFixed(2)})`).join(', ')}.`
       : 'Most sold: No sales recorded in the last 7 days.',
+    salesHistory.topSellers.previous.length
+      ? `Top sellers last week: ${salesHistory.topSellers.previous.map(item => `${item.item} (${item.qty} sold, $${item.revenue.toFixed(2)})`).join(', ')}.`
+      : 'Top sellers last week: No sales recorded in the previous 7-day period.',
     leastSold.length
       ? `Slow movers: ${leastSold.map(item => `${item.item} (${item.weeklyQty} sold)`).join(', ')}.`
       : 'Slow movers: No slow movers yet because there were no recorded sales.',
@@ -276,7 +311,7 @@ async function buildOwnerContext(storeId) {
   if (!store && stores.length > 0) store = stores[0];
   if (!store) return 'No stores found in the database.';
 
-  const salesSummary = await getSalesForStore(store.id);
+  const salesSummary = await getHistoricalSalesForStore(store.id);
   const demandVotes = await Vote.find().sort({ count: -1 }).limit(10).catch(() => []);
   const pendingRequests = await Request.find({ matched: false }).sort({ timestamp: -1 }).limit(10).catch(() => []);
 
@@ -306,8 +341,14 @@ ${JSON.stringify(store.inventory.map(i => ({
 LOW STOCK ALERTS:
 ${JSON.stringify(lowStock, null, 2)}
 
-7-DAY SALES SUMMARY for ${store.name}:
-${JSON.stringify(salesSummary, null, 2)}
+CURRENT 7-DAY SALES SUMMARY for ${store.name}:
+${JSON.stringify(salesSummary.currentWeek, null, 2)}
+
+PREVIOUS 7-DAY SALES SUMMARY for ${store.name}:
+${JSON.stringify(salesSummary.previousWeek, null, 2)}
+
+TOP SELLERS BY PERIOD:
+${JSON.stringify(salesSummary.topSellers, null, 2)}
 ${demandVotes.length > 0 ? `\nCOMMUNITY DEMAND (items customers are voting for):\n${JSON.stringify(demandVotes.map(v => ({
   item: v.item, ward: v.ward, votes: v.count
 })), null, 2)}` : ''}
@@ -320,7 +361,7 @@ RULES:
 - Format data clearly with line breaks between sections
 - Proactively mention critical low stock items and suggest reorder quantities
 - When owner wants to order, tell them to type: "place order [qty] units of [product]"
-- If discussing sales trends, mention top sellers and slow movers
+- If discussing sales trends, answer separately for this week and last week when data exists
 - Do NOT use markdown formatting like ** or ## -- use plain text only`;
 }
 
@@ -461,8 +502,9 @@ async function handleChatRequest(customerName, item, ward) {
 }
 
 // ─── Chat Endpoint ────────────────────────────────────────────────────────────
-app.post('/api/chat', async (req, res) => {
-  const { message, role, storeId, history } = req.body;
+app.post('/api/chat', verifyToken, async (req, res) => {
+  const { message, history } = req.body;
+  const { role, storeId } = resolveChatIdentity(req.body, req.user);
   if (!message) return res.status(400).json({ error: 'Message is required' });
 
   const t = message.toLowerCase();
