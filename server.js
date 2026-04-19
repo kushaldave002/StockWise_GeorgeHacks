@@ -16,16 +16,20 @@ const Listing = require('./models/Listing');
 const Request = require('./models/Request');
 const Vote = require('./models/Vote');
 
+// ─── Auth Middleware ───────────────────────────────────────────────────────────
+const { verifyToken, requireRole } = require('./middleware/auth');
+
 // ─── StockWise API Routes ─────────────────────────────────────────────────────
+app.use('/api/auth', require('./routes/auth'));
 app.use('/api/stores', require('./routes/stores'));
-app.use('/api/sales', require('./routes/sales'));
-app.use('/api/requests', require('./routes/requests'));
-app.use('/api/listings', require('./routes/listings'));
 app.use('/api/search', require('./routes/search'));
-app.use('/api/votes', require('./routes/votes'));
-app.use('/api/dashboard', require('./routes/dashboard'));
-app.use('/api/demand', require('./routes/demand'));
 app.use('/api/items', require('./routes/items'));
+app.use('/api/sales', requireRole('owner'), require('./routes/sales'));
+app.use('/api/dashboard', requireRole('owner'), require('./routes/dashboard'));
+app.use('/api/demand', requireRole('owner'), require('./routes/demand'));
+app.use('/api/listings', require('./routes/listings'));
+app.use('/api/votes', require('./routes/votes'));
+app.use('/api/requests', require('./routes/requests'));
 
 // ─── Gemini AI Helper (supports conversation history) ────────────────────────
 async function askGemini(systemContext, userMessage, history) {
@@ -248,7 +252,7 @@ async function placeOrder(storeId, product, quantity) {
 }
 
 // ─── Low Stock API ────────────────────────────────────────────────────────────
-app.get('/api/lowstock/:storeId', async (req, res) => {
+app.get('/api/lowstock/:storeId', requireRole('owner'), async (req, res) => {
   try {
     const store = await Store.findById(req.params.storeId);
     if (!store) return res.status(404).json({ error: 'Store not found' });
@@ -350,8 +354,10 @@ async function handleChatRequest(customerName, item, ward) {
 }
 
 // ─── Chat Endpoint ────────────────────────────────────────────────────────────
-app.post('/api/chat', async (req, res) => {
-  const { message, role, storeId, history } = req.body;
+app.post('/api/chat', verifyToken, async (req, res) => {
+  const { message, history } = req.body;
+  const role = req.user.role;
+  const storeId = req.user.storeId || req.body.storeId;
   if (!message) return res.status(400).json({ error: 'Message is required' });
 
   const t = message.toLowerCase();
@@ -386,7 +392,7 @@ app.post('/api/chat', async (req, res) => {
 
       if (item && ward) {
         try {
-          const result = await handleChatRequest('Chat Customer', item, ward);
+          const result = await handleChatRequest(req.user.name || 'Customer', item, ward);
           return res.json(result);
         } catch (err) {
           console.error('Request error:', err.message);
@@ -440,6 +446,8 @@ app.post('/api/chat', async (req, res) => {
 });
 
 // ─── Clean URLs for StockWise pages ───────────────────────────────────────────
+app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
+
 app.get('/:page', (req, res, next) => {
   const filePath = path.join(__dirname, 'public', req.params.page + '.html');
   res.sendFile(filePath, err => { if (err) next(); });
@@ -449,10 +457,26 @@ app.get('/:page', (req, res, next) => {
 const PORT = process.env.PORT || 3000;
 
 async function start() {
-  const uri = process.env.MONGODB_URI;
-  if (!uri) throw new Error('MONGODB_URI not set in .env');
+  let uri = process.env.MONGODB_URI;
+  let useInMemory = false;
+  if (!uri) {
+    const { MongoMemoryServer } = require('mongodb-memory-server');
+    const mongod = await MongoMemoryServer.create();
+    uri = mongod.getUri();
+    useInMemory = true;
+    console.log('No MONGODB_URI set — using in-memory MongoDB');
+  }
   await mongoose.connect(uri);
   console.log('Connected to MongoDB');
+
+  if (useInMemory) {
+    const storeCountBefore = await Store.countDocuments();
+    if (storeCountBefore === 0) {
+      console.log('Seeding demo data...');
+      await require('./seed-data')();
+      console.log('Demo data seeded.');
+    }
+  }
 
   app.listen(PORT, async () => {
     console.log(`\nStockWise running at http://localhost:${PORT}\n`);

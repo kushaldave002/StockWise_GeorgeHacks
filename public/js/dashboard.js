@@ -1,9 +1,14 @@
+// Auth guard — owner only
+const _currentUser = SW_Auth.requireAuth('owner');
+if (!_currentUser) throw new Error('redirect');
+SW_Auth.injectNav('dashboard');
+
 const API = '';
 
 async function loadDashboard() {
   const [dashRes, demandRes] = await Promise.all([
-    fetch(`${API}/api/dashboard`),
-    fetch(`${API}/api/demand`)
+    SW_Auth.authFetch(`${API}/api/dashboard`),
+    SW_Auth.authFetch(`${API}/api/demand`)
   ]);
   const dash = await dashRes.json();
   const demand = await demandRes.json();

@@ -6,6 +6,7 @@
   <title>StockWise Assistant - AI Chat</title>
   <link href="https://cdn.jsdelivr.net/npm/@fontsource/cascadia-code@latest/index.css" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/auth.js?v=4"></script>
   <style>
     body { display: flex; flex-direction: column; min-height: 100vh; }
 
@@ -180,11 +181,7 @@
   <nav class="nav">
     <a href="/" class="nav-logo">Stock<span>Wise</span></a>
     <div class="nav-links">
-      <a href="/customer">Find Food</a>
-      <a href="/tablet">Store Tablet</a>
-      <a href="/dashboard">DCCK Dashboard</a>
-      <a href="/community">Community Board</a>
-      <a href="/chatbot">AI Assistant</a>
+      <a href="/chatbot" class="active">AI Assistant</a>
     </div>
   </nav>
 
@@ -197,15 +194,12 @@
           <div class="chat-subtitle" id="role-label">Customer mode -- Powered by Gemini AI</div>
         </div>
       </div>
-      <div class="role-toggle">
-        <button class="role-btn active" onclick="setRole('customer')">Customer</button>
-        <button class="role-btn" onclick="setRole('owner')">Store Owner</button>
-      </div>
+      <div class="role-toggle" id="role-badge"></div>
     </div>
 
     <div class="store-selector" id="store-selector">
-      <span class="store-selector-label">Select store:</span>
-      <span id="store-chips">Loading stores...</span>
+      <span class="store-selector-label">Your store:</span>
+      <span id="store-chips"></span>
     </div>
 
     <div class="alert-banner" id="alert-banner" onclick="handleAlertClick()">
@@ -224,10 +218,25 @@
   </div>
 
 <script>
-  let currentRole = 'customer';
-  let currentStoreId = null;
+  // Auth guard — any logged-in user
+  const _chatUser = SW_Auth.requireAuth();
+  if (!_chatUser) throw new Error('redirect');
+  SW_Auth.injectNav('chatbot');
+
+  // Role is fixed from JWT — no manual toggle
+  const currentRole = _chatUser.role;
+  let currentStoreId = _chatUser.storeId || null;
   let storesLoaded = [];
-  let chatHistory = []; // conversation memory
+  let chatHistory = [];
+
+  // Show role badge
+  const roleColor = currentRole === 'owner' ? 'var(--orange)' : 'var(--accent)';
+  const roleLabel = currentRole === 'owner' ? 'Store Owner Mode' : 'Customer Mode';
+  document.getElementById('role-badge').innerHTML =
+    `<span style="font-size:0.75rem;padding:0.35rem 0.9rem;border:1px solid ${roleColor};border-radius:20px;color:${roleColor};font-weight:600">${roleLabel}</span>`;
+
+  document.getElementById('role-label').textContent =
+    currentRole === 'customer' ? 'Customer mode -- Powered by Gemini AI' : 'Store owner mode -- Powered by Gemini AI';
 
   const suggestionSets = {
     customer: [
@@ -252,8 +261,9 @@
   }
 
   async function checkLowStock(storeId) {
+    if (!storeId || currentRole !== 'owner') return;
     try {
-      const res = await fetch(`/api/lowstock/${storeId}`);
+      const res = await SW_Auth.authFetch(`/api/lowstock/${storeId}`);
       const alerts = await res.json();
       const banner = document.getElementById('alert-banner');
       if (alerts.length > 0) {
@@ -274,44 +284,14 @@
     quickSend('Which products are running low and should I reorder them?');
   }
 
-  function selectStore(id, btn) {
-    currentStoreId = id;
-    document.querySelectorAll('.store-chip').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    checkLowStock(id);
-    const storeName = storesLoaded.find(s => s._id === id)?.name || 'this store';
-    appendMsg('bot', `Switched to ${storeName}. How can I help you manage this store?`);
-  }
-
-  function setRole(role) {
-    currentRole = role;
-    document.querySelectorAll('.role-btn').forEach(b =>
-      b.classList.toggle('active', b.textContent.toLowerCase().includes(role))
-    );
-    document.getElementById('role-label').textContent =
-      role === 'customer' ? 'Customer mode -- Powered by Gemini AI' : 'Store owner mode -- Powered by Gemini AI';
-    document.getElementById('store-selector').classList.toggle('visible', role === 'owner');
-    document.getElementById('alert-banner').classList.remove('visible');
-    renderSuggestions();
-    document.getElementById('messages').innerHTML = '';
-    chatHistory = []; // clear history on role switch
-
-    if (role === 'owner') {
-      checkLowStock(currentStoreId);
-      appendMsg('bot', `Welcome, store owner! I'm connected to your live inventory and sales data.\n\nI can help you with:\n- Sales trends and 7-day history\n- Low stock alerts and restock recommendations\n- Placing orders directly from chat\n- Community demand insights\n\nSelect your store above, then ask me anything.`);
-    } else {
-      appendMsg('bot', `Hi! I'm the StockWise Assistant.\n\nI can help you find fresh food across DC corner stores:\n- Check product availability and prices\n- Find which stores carry what you need\n- Get suggestions for alternatives\n- Check store locations by ward\n\nWhat are you looking for?`);
-    }
-  }
-
   function appendMsg(role, text, extra) {
     const msgs = document.getElementById('messages');
     const div = document.createElement('div');
     div.className = `msg ${role}`;
 
+    const userInitials = _chatUser.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
     let content = `<div class="bubble">${text.replace(/\n/g,'<br>')}</div>`;
 
-    // Order confirmation card
     if (extra && extra.order) {
       const o = extra.order;
       content += `
@@ -326,17 +306,15 @@
         </div>`;
     }
 
-    // Fulfillment card (for chat requests)
     if (extra && extra.fulfillment) {
       const f = extra.fulfillment;
       const labels = { pickup: 'Ready for Pickup', transfer: 'Cross-Ward Transfer', dcck: 'DCCK Delivery' };
       content += `<div class="fulfillment-card ${f}"><span class="fulfillment-tag">${labels[f] || f}</span><br>Order #${extra.request?.id || ''}</div>`;
     }
 
-    div.innerHTML = `<div class="msg-icon">${role === 'bot' ? 'SW' : 'You'}</div>${content}`;
+    div.innerHTML = `<div class="msg-icon">${role === 'bot' ? 'SW' : userInitials}</div>${content}`;
     msgs.appendChild(div);
 
-    // Action buttons
     if (extra && extra.actions && extra.actions.length > 0) {
       const btnDiv = document.createElement('div');
       btnDiv.className = 'action-buttons';
@@ -344,10 +322,7 @@
         const btn = document.createElement('button');
         btn.className = 'action-btn';
         btn.textContent = a.label;
-        btn.onclick = () => {
-          btnDiv.remove();
-          quickSend(a.action);
-        };
+        btn.onclick = () => { btnDiv.remove(); quickSend(a.action); };
         btnDiv.appendChild(btn);
       });
       msgs.appendChild(btnDiv);
@@ -387,15 +362,9 @@
     showTyping();
 
     try {
-      const res = await fetch('/api/chat', {
+      const res = await SW_Auth.authFetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text,
-          role: currentRole,
-          storeId: currentStoreId,
-          history: chatHistory
-        })
+        body: { message: text, history: chatHistory }
       });
       const data = await res.json();
       removeTyping();
@@ -411,13 +380,9 @@
 
         appendMsg('bot', data.reply, Object.keys(extra).length > 0 ? extra : null);
         chatHistory.push({ role: 'model', text: data.reply });
-
-        // Keep history manageable
         if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
 
-        if (currentRole === 'owner' && data.order) {
-          checkLowStock(currentStoreId);
-        }
+        if (currentRole === 'owner' && data.order) checkLowStock(currentStoreId);
       }
     } catch (err) {
       removeTyping();
@@ -432,17 +397,31 @@
     try {
       const res = await fetch('/api/stores');
       storesLoaded = await res.json();
-      if (storesLoaded.length > 0) {
-        currentStoreId = storesLoaded[0]._id;
-        const chipsHtml = storesLoaded.map((s, i) =>
-          `<button class="store-chip${i === 0 ? ' active' : ''}" onclick="selectStore('${s._id}', this)">${s.name}</button>`
-        ).join('');
-        document.getElementById('store-chips').innerHTML = chipsHtml;
+      const storeSelector = document.getElementById('store-selector');
+      const storeChips = document.getElementById('store-chips');
+
+      if (currentRole === 'owner') {
+        // Use the store linked to this owner's account from JWT
+        const ownerStore = _chatUser.storeId
+          ? storesLoaded.find(s => s._id === _chatUser.storeId)
+          : storesLoaded[0];
+        currentStoreId = ownerStore?._id || null;
+
+        if (ownerStore) {
+          storeSelector.classList.add('visible');
+          storeChips.innerHTML =
+            `<span class="store-chip active" style="cursor:default">${ownerStore.name} &mdash; Ward ${ownerStore.ward}</span>`;
+          checkLowStock(currentStoreId);
+        }
+        appendMsg('bot', `Welcome back, ${_chatUser.name}! I'm connected to your live inventory and sales data.\n\nI can help you with:\n- Sales trends and 7-day history\n- Low stock alerts and restock recommendations\n- Placing orders directly from chat\n- Community demand insights\n\nAsk me anything about your store.`);
+      } else {
+        storeSelector.classList.remove('visible');
+        appendMsg('bot', `Hi ${_chatUser.name}! I'm the StockWise Assistant.\n\nI can help you find fresh food across DC corner stores:\n- Check product availability and prices\n- Find which stores carry what you need\n- Get suggestions for alternatives\n- Check store locations by ward\n\nWhat are you looking for?`);
       }
     } catch (e) {
-      document.getElementById('store-chips').innerHTML = '<span style="color:var(--red);font-size:0.7rem">Could not load stores</span>';
+      document.getElementById('store-chips').innerHTML = '<span style="color:var(--red);font-size:0.7rem">Could not load store info</span>';
     }
-    setRole('customer');
+    renderSuggestions();
   }
 
   loadStores();

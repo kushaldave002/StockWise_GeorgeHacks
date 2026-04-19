@@ -1,7 +1,8 @@
 const router = require('express').Router();
 const Vote = require('../models/Vote');
+const { verifyToken } = require('../middleware/auth');
 
-router.post('/', async (req, res) => {
+router.post('/', verifyToken, async (req, res) => {
   const { item, ward, voterName } = req.body;
   const normalized = item.toLowerCase().trim();
 

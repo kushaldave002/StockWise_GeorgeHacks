@@ -1,7 +1,11 @@
+// Auth guard — customer only
+const _currentUser = SW_Auth.requireAuth('customer');
+if (!_currentUser) throw new Error('redirect');
+SW_Auth.injectNav('customer');
+
 const API = '';
 let activeTab = 'items';
 let isSearching = false;
-let searchDebounce = null;
 
 // ── Cart State ─────────────────────────────────────────────────────────────
 let cart = JSON.parse(localStorage.getItem('sw_cart') || '[]');
@@ -39,12 +43,6 @@ function addToCart(item, price, isHealthy, storeName) {
   saveCart();
   renderCart();
   showToast(`Added ${item} to cart`);
-}
-
-function renderHealthBadge(isHealthy, compact = false) {
-  const label = isHealthy ? 'Healthy' : 'Less Healthy';
-  const badgeClass = isHealthy ? 'health-badge healthy' : 'health-badge unhealthy';
-  return `<span class="${badgeClass}${compact ? ' compact' : ''}">${label}</span>`;
 }
 
 function changeQty(index, delta) {
@@ -98,7 +96,7 @@ function renderCart() {
   itemsEl.innerHTML = cart.map((c, i) => `
     <div class="cart-item">
       <div class="cart-item-name">${c.item}<br><span style="font-size:0.75rem;color:var(--text-secondary)">${c.storeName}</span></div>
-      ${renderHealthBadge(c.isHealthy, true)}
+      <span class="cart-item-health ${c.isHealthy ? 'healthy' : 'unhealthy'}">${c.isHealthy ? '✓' : '✗'}</span>
       <div class="cart-item-qty">
         <button onclick="changeQty(${i}, -1)">−</button>
         <span>${c.qty}</span>
@@ -167,10 +165,7 @@ async function loadBrowseItems() {
               </span>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.25rem">
-              <div style="font-size:0.8rem;color:var(--text-secondary);display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap">
-                <span>${item.stores.length} store${item.stores.length !== 1 ? 's' : ''}</span>
-                ${renderHealthBadge(item.isHealthy, true)}
-              </div>
+              <div style="font-size:0.8rem;color:var(--text-secondary)">${item.stores.length} store${item.stores.length !== 1 ? 's' : ''} · ${item.isHealthy ? '<span style="color:var(--accent);font-size:0.75rem">✓ Healthy</span>' : '<span style="color:var(--red);font-size:0.75rem">✗ Unhealthy</span>'}</div>
               <button class="add-to-cart-btn" data-cart-item="${createCartButtonPayload(item.item, item.minPrice, item.isHealthy, item.stores[0]?.name || '')}">+ Add</button>
             </div>
             <div class="item-detail" style="display:none;margin-top:0.75rem;border-top:1px solid var(--border);padding-top:0.75rem">
@@ -255,7 +250,6 @@ async function toggleStoreInventory(card, storeId) {
             <strong>${inv.item}</strong> &mdash; $${inv.price.toFixed(2)}
             ${inv.qty > 0 ? `<span style="color:var(--text-secondary)"> (${inv.qty})</span>` : '<span style="color:var(--red)"> OUT</span>'}
             ${inv.qty > 0 && inv.qty <= 3 ? '<span class="badge badge-red">LOW</span>' : ''}
-            ${renderHealthBadge(inv.isHealthy, true)}
             ${inv.qty > 0 ? `<button class="add-to-cart-btn" style="margin-left:0.5rem" data-cart-item="${createCartButtonPayload(inv.item, inv.price, inv.isHealthy, store.name)}">+ Add</button>` : ''}
           </div>
         `).join('')}
@@ -295,7 +289,7 @@ async function doSearch() {
             <span>
               <strong>${item.item}</strong> &mdash; ${item.qty} left &mdash; $${item.price.toFixed(2)}
               ${item.qty <= 3 ? '<span class="badge badge-red">LOW</span>' : ''}
-              ${renderHealthBadge(item.isHealthy, true)}
+              ${item.isHealthy ? '<span style="color:var(--accent);font-size:0.75rem">&#10003;</span>' : '<span style="color:var(--red);font-size:0.75rem">&#10007;</span>'}
             </span>
             <button class="add-to-cart-btn" data-cart-item="${createCartButtonPayload(item.item, item.price, item.isHealthy, store.name)}">+ Add</button>
           </div>
@@ -316,36 +310,13 @@ function clearSearch() {
   else loadBrowseStores();
 }
 
-document.getElementById('searchInput').addEventListener('input', e => {
-  const q = e.target.value.trim();
-  clearTimeout(searchDebounce);
-
-  if (!q) {
-    clearSearch();
-    return;
-  }
-
-  searchDebounce = setTimeout(() => {
-    doSearch();
-  }, 180);
-});
-
 document.getElementById('searchInput').addEventListener('keyup', e => {
-  if (e.key === 'Enter') {
-    clearTimeout(searchDebounce);
-    doSearch();
-  }
-  if (e.key === 'Escape') {
-    clearTimeout(searchDebounce);
-    clearSearch();
-  }
+  if (e.key === 'Enter') doSearch();
+  if (e.key === 'Escape') clearSearch();
 });
 
 document.getElementById('wardFilter').addEventListener('change', () => {
-  if (document.getElementById('searchInput').value.trim()) {
-    clearTimeout(searchDebounce);
-    doSearch();
-  } else if (!isSearching) {
+  if (!isSearching) {
     document.getElementById('browseItems').innerHTML = '';
     document.getElementById('browseStores').innerHTML = '';
     if (activeTab === 'items') loadBrowseItems();
@@ -379,14 +350,13 @@ document.addEventListener('click', e => {
 document.getElementById('requestForm').addEventListener('submit', async e => {
   e.preventDefault();
   const body = {
-    customerName: document.getElementById('reqName').value,
+    customerName: _currentUser.name || document.getElementById('reqName').value,
     item: document.getElementById('reqItem').value,
     ward: Number(document.getElementById('reqWard').value)
   };
-  const res = await fetch(`${API}/api/requests`, {
+  const res = await SW_Auth.authFetch(`${API}/api/requests`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+    body: body
   });
   const data = await res.json();
   const container = document.getElementById('requestResult');

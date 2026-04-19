@@ -6,15 +6,14 @@
   <title>StockWise - Connecting DC Communities to Fresh Food</title>
   <link href="https://cdn.jsdelivr.net/npm/@fontsource/cascadia-code@latest/index.css" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/auth.js?v=4"></script>
 </head>
 <body>
   <nav class="nav">
     <a href="/" class="nav-logo">Stock<span>Wise</span></a>
     <div class="nav-links">
       <a href="/customer">Find Food</a>
-      <a href="/tablet">Store Tablet</a>
-      <a href="/dashboard">DCCK Dashboard</a>
-      <a href="/community">Community Board</a>
+      <a href="/community">Community</a>
       <a href="/chatbot">AI Assistant</a>
     </div>
   </nav>
@@ -85,5 +84,9 @@
   <footer style="background:var(--surface);border-top:1px solid var(--border);color:var(--text-muted);text-align:center;padding:1.5rem;font-size:0.75rem">
     StockWise &mdash; George Hacks 2026 &mdash; Building the Corner Store of the Future
   </footer>
+<script>
+  // Inject user chip into nav (public page — no auth required)
+  SW_Auth.injectNav('');
+</script>
 </body>
 </html>

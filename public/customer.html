@@ -6,15 +6,15 @@
   <title>Find Food - StockWise</title>
   <link href="https://cdn.jsdelivr.net/npm/@fontsource/cascadia-code@latest/index.css" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/auth.js?v=4"></script>
 </head>
 <body>
   <nav class="nav">
     <a href="/" class="nav-logo">Stock<span>Wise</span></a>
     <div class="nav-links">
       <a href="/customer" class="active">Find Food</a>
-      <a href="/tablet">Store Tablet</a>
-      <a href="/dashboard">DCCK Dashboard</a>
-      <a href="/community">Community Board</a>
+      <a href="/community">Community</a>
+      <a href="/chatbot">AI Assistant</a>
     </div>
   </nav>
 
@@ -57,9 +57,8 @@
       <h2 class="section-title">Can't Find What You Need?</h2>
       <div class="card" style="max-width:500px">
         <form id="requestForm">
-          <div class="form-group">
-            <label>Your Name</label>
-            <input type="text" id="reqName" placeholder="e.g., Maria G." required>
+          <div class="form-group" style="display:none">
+            <input type="text" id="reqName">
           </div>
           <div class="form-group">
             <label>What do you need?</label>
