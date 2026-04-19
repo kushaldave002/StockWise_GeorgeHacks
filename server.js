@@ -62,23 +62,36 @@ async function askGemini(systemContext, userMessage, history) {
     parts: [{ text: userMessage + '\n\nRespond helpfully. Always include store name, address, price, and stock quantity when relevant. Use plain text only, no markdown. Format clearly with line breaks.' }]
   });
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents,
-      generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
-    })
-  });
+  const maxRetries = 3;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents,
+        generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
+      })
+    });
 
-  const data = await response.json();
-  if (data.error) throw new Error(data.error.message);
-  const candidate = data.candidates[0];
-  const text = candidate.content.parts[0].text;
-  if (candidate.finishReason && candidate.finishReason !== 'STOP') {
-    console.log('Gemini finish reason:', candidate.finishReason);
+    const data = await response.json();
+    if (data.error) {
+      const isOverloaded = data.error.code === 429 || data.error.code === 503 ||
+        (data.error.message && data.error.message.toLowerCase().includes('high demand'));
+      if (isOverloaded && attempt < maxRetries) {
+        const delay = attempt * 2000;
+        console.log(`Gemini overloaded (attempt ${attempt}/${maxRetries}), retrying in ${delay/1000}s...`);
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      throw new Error(data.error.message);
+    }
+    const candidate = data.candidates[0];
+    const text = candidate.content.parts[0].text;
+    if (candidate.finishReason && candidate.finishReason !== 'STOP') {
+      console.log('Gemini finish reason:', candidate.finishReason);
+    }
+    return text;
   }
-  return text;
 }
 
 // ─── Helper: get store data from whichever schema exists ──────────────────────
