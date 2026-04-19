@@ -19,6 +19,15 @@ function closeCart() {
   document.getElementById('cartOverlay').classList.remove('visible');
 }
 
+function createCartButtonPayload(item, price, isHealthy, storeName) {
+  return encodeURIComponent(JSON.stringify({
+    item,
+    price,
+    isHealthy: isHealthy === true,
+    storeName
+  }));
+}
+
 function addToCart(item, price, isHealthy, storeName) {
   const existing = cart.find(c => c.item === item && c.storeName === storeName);
   if (existing) {
@@ -152,7 +161,7 @@ async function loadBrowseItems() {
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.25rem">
               <div style="font-size:0.8rem;color:var(--text-secondary)">${item.stores.length} store${item.stores.length !== 1 ? 's' : ''} · ${item.isHealthy ? '<span style="color:var(--accent);font-size:0.75rem">✓ Healthy</span>' : '<span style="color:var(--red);font-size:0.75rem">✗ Unhealthy</span>'}</div>
-              <button class="add-to-cart-btn" onclick="event.stopPropagation();addToCart(${JSON.stringify(item.item)},${item.minPrice},${item.isHealthy === true},${JSON.stringify(item.stores[0]?.name||'')})" disabled="${!item.stores[0]?.name}">+ Add</button>
+              <button class="add-to-cart-btn" data-cart-item="${createCartButtonPayload(item.item, item.minPrice, item.isHealthy, item.stores[0]?.name || '')}">+ Add</button>
             </div>
             <div class="item-detail" style="display:none;margin-top:0.75rem;border-top:1px solid var(--border);padding-top:0.75rem">
               ${item.stores.map(s => `
@@ -236,6 +245,7 @@ async function toggleStoreInventory(card, storeId) {
             <strong>${inv.item}</strong> &mdash; $${inv.price.toFixed(2)}
             ${inv.qty > 0 ? `<span style="color:var(--text-secondary)"> (${inv.qty})</span>` : '<span style="color:var(--red)"> OUT</span>'}
             ${inv.qty > 0 && inv.qty <= 3 ? '<span class="badge badge-red">LOW</span>' : ''}
+            ${inv.qty > 0 ? `<button class="add-to-cart-btn" style="margin-left:0.5rem" data-cart-item="${createCartButtonPayload(inv.item, inv.price, inv.isHealthy, store.name)}">+ Add</button>` : ''}
           </div>
         `).join('')}
       </div>
@@ -276,7 +286,7 @@ async function doSearch() {
               ${item.qty <= 3 ? '<span class="badge badge-red">LOW</span>' : ''}
               ${item.isHealthy ? '<span style="color:var(--accent);font-size:0.75rem">&#10003;</span>' : '<span style="color:var(--red);font-size:0.75rem">&#10007;</span>'}
             </span>
-            <button class="add-to-cart-btn" onclick="addToCart(${JSON.stringify(item.item)},${item.price},${item.isHealthy === true},${JSON.stringify(store.name)})">+ Add</button>
+            <button class="add-to-cart-btn" data-cart-item="${createCartButtonPayload(item.item, item.price, item.isHealthy, store.name)}">+ Add</button>
           </div>
         `).join('')}
       </div>
@@ -312,6 +322,25 @@ document.getElementById('wardFilter').addEventListener('change', () => {
 function formatDate(d) {
   return new Date(d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
+
+document.addEventListener('click', e => {
+  const addButton = e.target.closest('.add-to-cart-btn[data-cart-item]');
+  if (!addButton) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  const payload = addButton.dataset.cartItem;
+  if (!payload) return;
+
+  try {
+    const { item, price, isHealthy, storeName } = JSON.parse(decodeURIComponent(payload));
+    addToCart(item, Number(price), isHealthy === true, storeName || '');
+  } catch (err) {
+    console.error('Failed to add cart item:', err);
+    showToast('Could not add item to cart');
+  }
+});
 
 document.getElementById('requestForm').addEventListener('submit', async e => {
   e.preventDefault();

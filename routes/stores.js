@@ -3,7 +3,7 @@ const Store = require('../models/Store');
 
 // Get all stores
 router.get('/', async (req, res) => {
-  const stores = await Store.find({}, 'name address ward');
+  const stores = await Store.find({}, 'name address ward characteristics');
   res.json(stores);
 });
 
