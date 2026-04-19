@@ -1,8 +1,7 @@
 const router = require('express').Router();
 const Listing = require('../models/Listing');
-const { requireRole } = require('../middleware/auth');
 
-router.post('/', requireRole('owner'), async (req, res) => {
+router.post('/', async (req, res) => {
   const { store, item, qty, price, expiry } = req.body;
   const listing = await Listing.create({ store, item, qty, price, expiry });
   res.json({ success: true, listing });

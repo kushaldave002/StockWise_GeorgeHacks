@@ -3,16 +3,15 @@ const Request = require('../models/Request');
 const Store = require('../models/Store');
 const Listing = require('../models/Listing');
 const Coupon = require('../models/Coupon');
-const { requireRole } = require('../middleware/auth');
 
-const TRANSFER_MARKUP_PCT = 0.15;
-const SOURCE_COMMISSION_PCT = 0.10;
+const TRANSFER_MARKUP_PCT = 0.15;  // 15% price increase on transfers
+const SOURCE_COMMISSION_PCT = 0.10; // 10% commission to source store
 
 function generateCouponCode() {
   return 'SW-' + Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-router.post('/', requireRole('customer'), async (req, res) => {
+router.post('/', async (req, res) => {
   const { customerName, item, ward } = req.body;
   const regex = new RegExp(item, 'i');
 

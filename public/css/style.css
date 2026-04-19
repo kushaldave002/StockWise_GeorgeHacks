@@ -699,6 +699,7 @@ tr:hover { background: var(--surface-2); }
   margin-top: 0.35rem;
 }
 .cart-totals .discount-row { color: var(--accent); }
+.cart-totals .transfer-row { color: var(--orange); }
 
 .btn-clear-cart {
   width: 100%;
@@ -752,4 +753,88 @@ tr:hover { background: var(--surface-2); }
 
 @media (max-width: 600px) {
   .cart-panel { width: 100%; right: -100%; }
+  .payment-modal { width: 95%; max-height: 90vh; }
+}
+
+/* ── Payment Modal ─────────────────────────────────────────────────────────── */
+.payment-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 400;
+}
+.payment-overlay.visible { display: block; }
+
+.payment-modal {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 440px;
+  max-width: 95vw;
+  max-height: 85vh;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  z-index: 401;
+  overflow: hidden;
+  flex-direction: column;
+}
+.payment-modal.visible {
+  display: flex;
+}
+.payment-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.payment-body {
+  padding: 1rem 1.25rem;
+  overflow-y: auto;
+  flex: 1;
+}
+.payment-footer {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.payment-summary {
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  font-size: 0.85rem;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.payment-summary .pay-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.2rem 0;
+  color: var(--text-secondary);
+}
+.payment-summary .pay-item strong { color: var(--text); }
+
+.pay-method-btn {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+}
+.pay-method-btn:hover { border-color: var(--border-hover); color: var(--text); }
+.pay-method-btn.active {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: var(--accent);
 }

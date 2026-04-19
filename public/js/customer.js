@@ -1,11 +1,13 @@
-// Auth guard — customer only
-const _currentUser = SW_Auth.requireAuth('customer');
-if (!_currentUser) throw new Error('redirect');
-SW_Auth.injectNav('customer');
-
 const API = '';
 let activeTab = 'items';
 let isSearching = false;
+
+// Auth guard + nav injection (adds floating AI chatbot widget)
+if (window.SW_Auth) {
+  const _currentUser = SW_Auth.requireAuth('customer');
+  if (!_currentUser) throw new Error('redirect');
+  SW_Auth.injectNav('customer');
+}
 
 // ── Cart State ─────────────────────────────────────────────────────────────
 let cart = JSON.parse(localStorage.getItem('sw_cart') || '[]');
@@ -24,21 +26,31 @@ function closeCart() {
   document.getElementById('cartOverlay').classList.remove('visible');
 }
 
-function createCartButtonPayload(item, price, isHealthy, storeName) {
+// Customer ward for transfer fee calculation
+let customerWard = localStorage.getItem('sw_customer_ward') || '';
+
+function setCustomerWard(ward) {
+  customerWard = ward;
+  localStorage.setItem('sw_customer_ward', ward);
+  renderCart();
+}
+
+function createCartButtonPayload(item, price, isHealthy, storeName, storeWard) {
   return encodeURIComponent(JSON.stringify({
     item,
     price,
     isHealthy: isHealthy === true,
-    storeName
+    storeName,
+    storeWard: storeWard || 0
   }));
 }
 
-function addToCart(item, price, isHealthy, storeName) {
+function addToCart(item, price, isHealthy, storeName, storeWard) {
   const existing = cart.find(c => c.item === item && c.storeName === storeName);
   if (existing) {
     existing.qty++;
   } else {
-    cart.push({ item, price, isHealthy, storeName, qty: 1 });
+    cart.push({ item, price, isHealthy, storeName, storeWard: storeWard || 0, qty: 1 });
   }
   saveCart();
   renderCart();
@@ -67,22 +79,45 @@ function renderCart() {
   const healthLabel = document.getElementById('healthPctLabel');
   const discountBadge = document.getElementById('discountBadge');
   const discountRow = document.getElementById('discountRow');
+  const transferRow = document.getElementById('transferRow');
   const totalsEl = document.getElementById('cartTotals');
   const subtotalEl = document.getElementById('subtotalVal');
   const discountEl = document.getElementById('discountVal');
+  const transferEl = document.getElementById('transferVal');
   const totalEl = document.getElementById('totalVal');
+  const wardSelect = document.getElementById('cartWardSelect');
+
+  // Sync ward selector
+  if (wardSelect) wardSelect.value = customerWard;
 
   const totalUnits = cart.reduce((s, c) => s + c.qty, 0);
   const healthyUnits = cart.reduce((s, c) => s + (c.isHealthy ? c.qty : 0), 0);
   const healthPct = totalUnits > 0 ? Math.round((healthyUnits / totalUnits) * 100) : 0;
   const qualifies = healthPct >= 70;
-  const subtotal = cart.reduce((s, c) => s + c.price * c.qty, 0);
-  const discount = qualifies ? subtotal * 0.05 : 0;
-  const total = subtotal - discount;
+  const custWardNum = customerWard ? Number(customerWard) : 0;
+
+  // Calculate subtotal, transfer fees, and discount
+  let subtotal = 0;
+  let transferFeeTotal = 0;
+
+  const cartWithFees = cart.map(c => {
+    const linePrice = c.price * c.qty;
+    const isTransfer = custWardNum > 0 && c.storeWard > 0 && c.storeWard !== custWardNum;
+    const transferFee = isTransfer ? Math.round(linePrice * 0.15 * 100) / 100 : 0;
+    subtotal += linePrice;
+    transferFeeTotal += transferFee;
+    return { ...c, isTransfer, transferFee };
+  });
+
+  const discount = qualifies ? Math.round((subtotal + transferFeeTotal) * 0.05 * 100) / 100 : 0;
+  const total = subtotal + transferFeeTotal - discount;
 
   // FAB
   fab.style.display = totalUnits > 0 ? 'flex' : 'none';
   countEl.textContent = totalUnits;
+
+  const checkoutWrap = document.getElementById('checkoutBtnWrap');
+  const couponsEl = document.getElementById('cartCoupons');
 
   // Items list
   if (cart.length === 0) {
@@ -90,19 +125,25 @@ function renderCart() {
     healthWrap.style.display = 'none';
     discountBadge.classList.remove('visible');
     totalsEl.style.display = 'none';
+    checkoutWrap.style.display = 'none';
+    couponsEl.style.display = 'none';
     return;
   }
 
-  itemsEl.innerHTML = cart.map((c, i) => `
+  itemsEl.innerHTML = cartWithFees.map((c, i) => `
     <div class="cart-item">
-      <div class="cart-item-name">${c.item}<br><span style="font-size:0.75rem;color:var(--text-secondary)">${c.storeName}</span></div>
+      <div class="cart-item-name">
+        ${c.item}
+        <br><span style="font-size:0.75rem;color:var(--text-secondary)">${c.storeName} (Ward ${c.storeWard})</span>
+        ${c.isTransfer ? '<br><span style="font-size:0.7rem;color:var(--orange)">+15% transfer fee: +$' + c.transferFee.toFixed(2) + '</span>' : ''}
+      </div>
       <span class="cart-item-health ${c.isHealthy ? 'healthy' : 'unhealthy'}">${c.isHealthy ? '✓' : '✗'}</span>
       <div class="cart-item-qty">
         <button onclick="changeQty(${i}, -1)">−</button>
         <span>${c.qty}</span>
         <button onclick="changeQty(${i}, 1)">+</button>
       </div>
-      <div class="cart-item-price">$${(c.price * c.qty).toFixed(2)}</div>
+      <div class="cart-item-price">${c.isTransfer ? '<span style="font-size:0.7rem;color:var(--text-secondary);text-decoration:line-through">$' + (c.price * c.qty).toFixed(2) + '</span><br>' : ''}$${(c.price * c.qty + c.transferFee).toFixed(2)}</div>
     </div>
   `).join('');
 
@@ -118,9 +159,262 @@ function renderCart() {
   // Totals
   totalsEl.style.display = '';
   subtotalEl.textContent = '$' + subtotal.toFixed(2);
+
+  // Transfer fee row
+  transferRow.style.display = transferFeeTotal > 0 ? '' : 'none';
+  transferEl.textContent = '+$' + transferFeeTotal.toFixed(2);
+
+  // Discount row
   discountRow.style.display = qualifies ? '' : 'none';
   discountEl.textContent = '-$' + discount.toFixed(2);
+
   totalEl.textContent = '$' + total.toFixed(2);
+
+  // Show checkout button and reset its state
+  checkoutWrap.style.display = '';
+  const checkoutBtn = document.getElementById('checkoutBtn');
+  checkoutBtn.disabled = false;
+  checkoutBtn.textContent = 'Place Order';
+  couponsEl.style.display = 'none';
+}
+
+// ── Payment Modal ─────────────────────────────────────────────────────────
+let selectedPayMethod = 'card';
+let appliedCouponAmount = 0;
+let appliedCouponCode = '';
+
+function checkout() {
+  if (cart.length === 0) return;
+  if (!customerWard) {
+    showToast('Please select your ward first');
+    return;
+  }
+
+  // Calculate totals for payment summary
+  const custWardNum = Number(customerWard);
+  let subtotal = 0;
+  let transferFeeTotal = 0;
+  const items = cart.map(c => {
+    const linePrice = c.price * c.qty;
+    const isTransfer = custWardNum > 0 && c.storeWard > 0 && c.storeWard !== custWardNum;
+    const transferFee = isTransfer ? Math.round(linePrice * 0.15 * 100) / 100 : 0;
+    subtotal += linePrice;
+    transferFeeTotal += transferFee;
+    return { ...c, isTransfer, transferFee };
+  });
+
+  const totalUnits = cart.reduce((s, c) => s + c.qty, 0);
+  const healthyUnits = cart.reduce((s, c) => s + (c.isHealthy ? c.qty : 0), 0);
+  const healthPct = totalUnits > 0 ? Math.round((healthyUnits / totalUnits) * 100) : 0;
+  const qualifies = healthPct >= 70;
+  const discount = qualifies ? Math.round((subtotal + transferFeeTotal) * 0.05 * 100) / 100 : 0;
+  const total = subtotal + transferFeeTotal - discount - appliedCouponAmount;
+
+  // Build payment summary
+  const summaryEl = document.getElementById('paymentSummary');
+  summaryEl.innerHTML = items.map(c => `
+    <div class="pay-item">
+      <span><strong>${c.item}</strong> x${c.qty} ${c.isTransfer ? '<span style="color:var(--orange);font-size:0.75rem">(transfer)</span>' : ''}</span>
+      <span>$${(c.price * c.qty).toFixed(2)}</span>
+    </div>
+  `).join('') +
+  `<div style="border-top:1px solid var(--border);margin:0.5rem 0;padding-top:0.5rem">
+    <div class="pay-item"><span>Subtotal</span><span>$${subtotal.toFixed(2)}</span></div>` +
+  (transferFeeTotal > 0 ? `<div class="pay-item" style="color:var(--orange)"><span>Transfer fee (15%) — items from other wards</span><span>+$${transferFeeTotal.toFixed(2)}</span></div>` : '') +
+  (qualifies ? `<div class="pay-item" style="color:var(--accent)"><span>Healthy discount (5%) — 70%+ healthy items</span><span>-$${discount.toFixed(2)}</span></div>` : '') +
+  (appliedCouponAmount > 0 ? `<div class="pay-item" style="color:var(--accent)"><span>Coupon (${appliedCouponCode})</span><span>-$${appliedCouponAmount.toFixed(2)}</span></div>` : '') +
+  `</div>` +
+  `<div style="font-size:0.7rem;color:var(--text-secondary);margin-top:0.5rem;line-height:1.4">
+    <strong>How your total is calculated:</strong><br>
+    Subtotal (item prices × qty)${transferFeeTotal > 0 ? ' + 15% transfer fee for items sourced from a different ward' : ''}${qualifies ? ' − 5% discount for having 70%+ healthy items in your cart' : ''} = Total
+  </div>`;
+
+  document.getElementById('payTotal').textContent = '$' + Math.max(0, total).toFixed(2);
+
+  // Reset payment form state
+  document.getElementById('payBtn').disabled = false;
+  document.getElementById('payBtn').textContent = selectedPayMethod === 'cash' ? 'Reserve Order' : 'Pay Now';
+  // Open modal
+  document.getElementById('paymentOverlay').classList.add('visible');
+  document.getElementById('paymentModal').classList.add('visible');
+}
+
+function closePayment() {
+  document.getElementById('paymentOverlay').classList.remove('visible');
+  document.getElementById('paymentModal').classList.remove('visible');
+}
+
+function selectPayMethod(method) {
+  selectedPayMethod = method;
+  document.querySelectorAll('.pay-method-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.method === method);
+  });
+  document.getElementById('cardFields').style.display = method === 'card' ? '' : 'none';
+  document.getElementById('snapFields').style.display = method === 'snap' ? '' : 'none';
+  document.getElementById('cashFields').style.display = method === 'cash' ? '' : 'none';
+  document.getElementById('payBtn').textContent = method === 'cash' ? 'Reserve Order' : 'Pay Now';
+}
+
+function formatCardNumber(input) {
+  let v = input.value.replace(/\D/g, '').substring(0, 16);
+  input.value = v.replace(/(.{4})/g, '$1 ').trim();
+}
+
+function formatExpiry(input) {
+  let v = input.value.replace(/\D/g, '').substring(0, 4);
+  if (v.length >= 2) v = v.substring(0, 2) + '/' + v.substring(2);
+  input.value = v;
+}
+
+function applyCoupon() {
+  const code = document.getElementById('payCoupon').value.trim().toUpperCase();
+  const statusEl = document.getElementById('couponStatus');
+  if (!code) {
+    statusEl.innerHTML = '<span style="color:var(--red)">Enter a coupon code</span>';
+    return;
+  }
+  // Check if code matches SW-XXXXXX pattern (valid StockWise coupon)
+  if (/^SW-[A-Z0-9]{4,8}$/.test(code)) {
+    // For demo: accept any SW- code with a simulated amount based on transfer fees
+    const custWardNum = Number(customerWard);
+    let transferTotal = 0;
+    cart.forEach(c => {
+      const isTransfer = custWardNum > 0 && c.storeWard > 0 && c.storeWard !== custWardNum;
+      if (isTransfer) transferTotal += Math.round(c.price * c.qty * 0.15 * 100) / 100;
+    });
+    appliedCouponAmount = transferTotal > 0 ? Math.min(transferTotal, 2.00) : 0.50;
+    appliedCouponCode = code;
+    statusEl.innerHTML = `<span style="color:var(--accent)">Coupon applied! -$${appliedCouponAmount.toFixed(2)}</span>`;
+    checkout(); // Re-render with coupon applied
+  } else {
+    statusEl.innerHTML = '<span style="color:var(--red)">Invalid coupon code</span>';
+    appliedCouponAmount = 0;
+    appliedCouponCode = '';
+  }
+}
+
+async function processPayment() {
+  // Validate payment fields
+  const name = document.getElementById('payName').value.trim();
+  if (!name) { showToast('Please enter your name'); return; }
+
+  if (selectedPayMethod === 'card') {
+    const card = document.getElementById('payCard').value.replace(/\s/g, '');
+    const expiry = document.getElementById('payExpiry').value;
+    const cvv = document.getElementById('payCvv').value;
+    if (card.length < 16) { showToast('Enter a valid card number'); return; }
+    if (expiry.length < 5) { showToast('Enter card expiry'); return; }
+    if (cvv.length < 3) { showToast('Enter CVV'); return; }
+  } else if (selectedPayMethod === 'snap') {
+    const ebt = document.getElementById('payEbt').value.trim();
+    if (!ebt) { showToast('Enter your EBT card number'); return; }
+  }
+
+  const payBtn = document.getElementById('payBtn');
+  payBtn.disabled = true;
+  payBtn.textContent = 'Processing...';
+
+  const results = [];
+  const coupons = [];
+
+  for (const c of cart) {
+    try {
+      const res = await fetch(`${API}/api/requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: name,
+          item: c.item,
+          ward: Number(customerWard)
+        })
+      });
+      const data = await res.json();
+      results.push({ item: c.item, qty: c.qty, data });
+
+      if (data.transferEconomics && data.transferEconomics.couponCode) {
+        coupons.push({
+          item: c.item,
+          code: data.transferEconomics.couponCode,
+          amount: data.transferEconomics.couponAmount,
+          orderId: data.request.id.toString().slice(-6).toUpperCase()
+        });
+      }
+    } catch (err) {
+      console.error('Checkout error for', c.item, err);
+      results.push({ item: c.item, qty: c.qty, error: true });
+    }
+  }
+
+  // Close payment modal
+  closePayment();
+
+  // Show order confirmation in cart
+  const couponsEl = document.getElementById('cartCoupons');
+  const itemsEl = document.getElementById('cartItems');
+
+  let summaryHtml = '<div style="margin-bottom:0.75rem">';
+  summaryHtml += '<div style="font-size:0.8rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:0.5rem">Order Confirmed!</div>';
+  summaryHtml += `<div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.75rem">Paid via ${selectedPayMethod === 'card' ? 'Card' : selectedPayMethod === 'snap' ? 'SNAP/EBT' : 'Cash at Pickup'}</div>`;
+
+  for (const r of results) {
+    if (r.error) {
+      summaryHtml += `<div style="padding:0.4rem 0;font-size:0.85rem;color:var(--red)">${r.item} (x${r.qty}) -- Failed</div>`;
+      continue;
+    }
+    const f = r.data.fulfillment;
+    const orderId = r.data.request.id.toString().slice(-6).toUpperCase();
+    const tierColor = f === 'pickup' ? 'var(--accent)' : f === 'transfer' ? 'var(--orange)' : 'var(--blue)';
+    const tierLabel = f === 'pickup' ? 'Pickup Now' : f === 'transfer' ? 'Transfer (tomorrow)' : 'DCCK (~5 days)';
+    summaryHtml += `
+      <div style="padding:0.5rem 0;border-bottom:1px solid var(--border);font-size:0.85rem">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <strong>${r.item}</strong>
+          <span style="color:${tierColor};font-size:0.75rem;font-weight:700">${tierLabel}</span>
+        </div>
+        <div style="font-size:0.75rem;color:var(--text-secondary)">Order #${orderId}</div>
+      </div>`;
+  }
+  summaryHtml += '</div>';
+
+  itemsEl.innerHTML = summaryHtml;
+
+  // Show coupons earned
+  if (coupons.length > 0) {
+    couponsEl.style.display = '';
+    couponsEl.innerHTML = `
+      <div style="background:var(--accent-glow);border:1px solid rgba(0,212,123,0.3);border-radius:8px;padding:0.75rem;margin-bottom:0.75rem">
+        <div style="font-size:0.75rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:0.5rem">Coupons Earned</div>
+        ${coupons.map(cp => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:0.35rem 0;border-bottom:1px solid rgba(0,212,123,0.15)">
+            <div>
+              <div style="font-size:0.85rem;font-weight:600">${cp.item}</div>
+              <div style="font-size:0.7rem;color:var(--text-secondary)">Order #${cp.orderId}</div>
+            </div>
+            <div style="text-align:right">
+              <code style="background:var(--surface-3);padding:0.2rem 0.5rem;border-radius:4px;font-weight:700;letter-spacing:1px;font-size:0.85rem">${cp.code}</code>
+              <div style="font-size:0.75rem;color:var(--accent);font-weight:700;margin-top:0.15rem">$${cp.amount.toFixed(2)} OFF</div>
+            </div>
+          </div>
+        `).join('')}
+        <div style="font-size:0.7rem;color:var(--text-secondary);margin-top:0.5rem">Use these coupon codes on your next purchase. The transfer markup comes back to you!</div>
+      </div>`;
+  } else {
+    couponsEl.style.display = 'none';
+  }
+
+  // Clear cart
+  cart = [];
+  appliedCouponAmount = 0;
+  appliedCouponCode = '';
+  saveCart();
+
+  const checkoutWrap = document.getElementById('checkoutBtnWrap');
+  checkoutWrap.style.display = 'none';
+  document.getElementById('cartFab').style.display = 'none';
+  document.getElementById('cartCount').textContent = '0';
+
+  showToast('Order placed successfully!');
+  loadRecent();
 }
 
 function showToast(msg) {
@@ -166,7 +460,7 @@ async function loadBrowseItems() {
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.25rem">
               <div style="font-size:0.8rem;color:var(--text-secondary)">${item.stores.length} store${item.stores.length !== 1 ? 's' : ''} · ${item.isHealthy ? '<span style="color:var(--accent);font-size:0.75rem">✓ Healthy</span>' : '<span style="color:var(--red);font-size:0.75rem">✗ Unhealthy</span>'}</div>
-              <button class="add-to-cart-btn" data-cart-item="${createCartButtonPayload(item.item, item.minPrice, item.isHealthy, item.stores[0]?.name || '')}">+ Add</button>
+              <button class="add-to-cart-btn" data-cart-item="${createCartButtonPayload(item.item, item.minPrice, item.isHealthy, item.stores[0]?.name || '', item.stores[0]?.ward || 0)}">+ Add</button>
             </div>
             <div class="item-detail" style="display:none;margin-top:0.75rem;border-top:1px solid var(--border);padding-top:0.75rem">
               ${item.stores.map(s => `
@@ -250,7 +544,7 @@ async function toggleStoreInventory(card, storeId) {
             <strong>${inv.item}</strong> &mdash; $${inv.price.toFixed(2)}
             ${inv.qty > 0 ? `<span style="color:var(--text-secondary)"> (${inv.qty})</span>` : '<span style="color:var(--red)"> OUT</span>'}
             ${inv.qty > 0 && inv.qty <= 3 ? '<span class="badge badge-red">LOW</span>' : ''}
-            ${inv.qty > 0 ? `<button class="add-to-cart-btn" style="margin-left:0.5rem" data-cart-item="${createCartButtonPayload(inv.item, inv.price, inv.isHealthy, store.name)}">+ Add</button>` : ''}
+            ${inv.qty > 0 ? `<button class="add-to-cart-btn" style="margin-left:0.5rem" data-cart-item="${createCartButtonPayload(inv.item, inv.price, inv.isHealthy, store.name, store.ward)}">+ Add</button>` : ''}
           </div>
         `).join('')}
       </div>
@@ -291,7 +585,7 @@ async function doSearch() {
               ${item.qty <= 3 ? '<span class="badge badge-red">LOW</span>' : ''}
               ${item.isHealthy ? '<span style="color:var(--accent);font-size:0.75rem">&#10003;</span>' : '<span style="color:var(--red);font-size:0.75rem">&#10007;</span>'}
             </span>
-            <button class="add-to-cart-btn" data-cart-item="${createCartButtonPayload(item.item, item.price, item.isHealthy, store.name)}">+ Add</button>
+            <button class="add-to-cart-btn" data-cart-item="${createCartButtonPayload(item.item, item.price, item.isHealthy, store.name, store.ward)}">+ Add</button>
           </div>
         `).join('')}
       </div>
@@ -339,8 +633,8 @@ document.addEventListener('click', e => {
   if (!payload) return;
 
   try {
-    const { item, price, isHealthy, storeName } = JSON.parse(decodeURIComponent(payload));
-    addToCart(item, Number(price), isHealthy === true, storeName || '');
+    const { item, price, isHealthy, storeName, storeWard } = JSON.parse(decodeURIComponent(payload));
+    addToCart(item, Number(price), isHealthy === true, storeName || '', Number(storeWard) || 0);
   } catch (err) {
     console.error('Failed to add cart item:', err);
     showToast('Could not add item to cart');
@@ -350,13 +644,14 @@ document.addEventListener('click', e => {
 document.getElementById('requestForm').addEventListener('submit', async e => {
   e.preventDefault();
   const body = {
-    customerName: _currentUser.name || document.getElementById('reqName').value,
+    customerName: document.getElementById('reqName').value,
     item: document.getElementById('reqItem').value,
     ward: Number(document.getElementById('reqWard').value)
   };
-  const res = await SW_Auth.authFetch(`${API}/api/requests`, {
+  const res = await fetch(`${API}/api/requests`, {
     method: 'POST',
-    body: body
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
   });
   const data = await res.json();
   const container = document.getElementById('requestResult');
