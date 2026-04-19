@@ -246,9 +246,9 @@
       "Do any stores have eggs?"
     ],
     owner: [
+      "insights",
+      "reorder",
       "What are my top sellers this week?",
-      "Which products are running low?",
-      "Show me sales trends",
       "What are customers requesting?"
     ]
   };
@@ -413,7 +413,7 @@
             `<span class="store-chip active" style="cursor:default">${ownerStore.name} &mdash; Ward ${ownerStore.ward}</span>`;
           checkLowStock(currentStoreId);
         }
-        appendMsg('bot', `Welcome back, ${_chatUser.name}! I'm connected to your live inventory and sales data.\n\nI can help you with:\n- Sales trends and 7-day history\n- Low stock alerts and restock recommendations\n- Placing orders directly from chat\n- Community demand insights\n\nAsk me anything about your store.`);
+        appendMsg('bot', `Welcome back, ${_chatUser.name}! I'm connected to your live inventory and sales data.\n\nI can help you with:\n- Sales trends and 7-day history\n- Insights on best sellers, slow movers, and unsold items\n- Low stock alerts and restock recommendations\n- Out-of-stock and unmet demand analysis\n- Placing orders directly from chat\n- Community demand insights\n\nTry typing "insights" or "reorder".`);
       } else {
         storeSelector.classList.remove('visible');
         appendMsg('bot', `Hi ${_chatUser.name}! I'm the StockWise Assistant.\n\nI can help you find fresh food across DC corner stores:\n- Check product availability and prices\n- Find which stores carry what you need\n- Get suggestions for alternatives\n- Check store locations by ward\n\nWhat are you looking for?`);
