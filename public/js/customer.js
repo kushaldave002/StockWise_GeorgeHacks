@@ -573,15 +573,21 @@ async function doSearch() {
     return;
   }
 
-  container.innerHTML = data.map(store => `
+  container.innerHTML = data.map(store => {
+    const selectedWard = customerWard || document.getElementById('wardFilter')?.value || '';
+    const fulfillmentLabel = Number(store.ward) === Number(selectedWard || 0)
+      ? '<span class="fulfillment-pill pickup">Pickup in ward</span>'
+      : '<span class="fulfillment-pill transfer">Transfer available</span>';
+
+    return `
     <div class="card result-card" style="margin-bottom:1rem">
-      <h3>${store.name} <span class="badge badge-green">Ward ${store.ward}</span></h3>
+      <h3>${store.name} <span class="badge badge-green">Ward ${store.ward}</span>${fulfillmentLabel}</h3>
       <p style="color:var(--text-secondary);margin-bottom:0.75rem">${store.address}</p>
       <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
         ${store.items.map(item => `
           <div style="background:var(--accent-glow);padding:0.4rem 0.8rem;border-radius:8px;font-size:0.9rem;display:flex;align-items:center;gap:0.5rem">
             <span>
-              <strong>${item.item}</strong> &mdash; ${item.qty} left &mdash; $${item.price.toFixed(2)}
+              <strong>${item.item}</strong> - ${item.qty} left - ${item.price.toFixed(2)}
               ${item.qty <= 3 ? '<span class="badge badge-red">LOW</span>' : ''}
               ${item.isHealthy ? '<span style="color:var(--accent);font-size:0.75rem">&#10003;</span>' : '<span style="color:var(--red);font-size:0.75rem">&#10007;</span>'}
             </span>
@@ -589,8 +595,8 @@ async function doSearch() {
           </div>
         `).join('')}
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 function clearSearch() {

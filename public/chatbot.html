@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>StockWise Assistant - AI Chat</title>
+  <title>Ask StockWise</title>
   <link href="https://cdn.jsdelivr.net/npm/@fontsource/cascadia-code@latest/index.css" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
   <script src="/js/auth.js?v=4"></script>
@@ -190,8 +190,8 @@
       <div class="chat-header-left">
         <div class="chat-avatar">SW</div>
         <div>
-          <div class="chat-title">StockWise Assistant</div>
-          <div class="chat-subtitle" id="role-label">Customer mode -- Powered by Gemini AI</div>
+          <div class="chat-title">Ask StockWise</div>
+          <div class="chat-subtitle" id="role-label">Find stock, explain demand, or check reorder signals</div>
         </div>
       </div>
       <div class="role-toggle" id="role-badge"></div>
@@ -214,7 +214,7 @@
       <input type="text" class="chat-input" id="user-input" placeholder="Ask about products, prices, availability..." onkeydown="if(event.key==='Enter')sendMsg()"/>
       <button class="send-btn" id="send-btn" onclick="sendMsg()">&#9654;</button>
     </div>
-    <div class="chat-footer">StockWise -- Powered by Gemini AI</div>
+    <div class="chat-footer">Answers use current StockWise inventory, sales, and demand data.</div>
   </div>
 
 <script>
@@ -236,7 +236,7 @@
     `<span style="font-size:0.75rem;padding:0.35rem 0.9rem;border:1px solid ${roleColor};border-radius:20px;color:${roleColor};font-weight:600">${roleLabel}</span>`;
 
   document.getElementById('role-label').textContent =
-    currentRole === 'customer' ? 'Customer mode -- Powered by Gemini AI' : 'Store owner mode -- Powered by Gemini AI';
+    currentRole === 'customer' ? 'Customer mode: stock and request support' : 'Store owner mode: sales, stock, and reorder signals';
 
   const suggestionSets = {
     customer: [
@@ -416,7 +416,7 @@
         appendMsg('bot', `Welcome back, ${_chatUser.name}! I'm connected to your live inventory and sales data.\n\nI can help you with:\n- Sales trends and 7-day history\n- Insights on best sellers, slow movers, and unsold items\n- Low stock alerts and restock recommendations\n- Out-of-stock and unmet demand analysis\n- Placing orders directly from chat\n- Community demand insights\n\nTry typing "insights" or "reorder".`);
       } else {
         storeSelector.classList.remove('visible');
-        appendMsg('bot', `Hi ${_chatUser.name}! I'm the StockWise Assistant.\n\nI can help you find fresh food across DC corner stores:\n- Check product availability and prices\n- Find which stores carry what you need\n- Get suggestions for alternatives\n- Check store locations by ward\n\nWhat are you looking for?`);
+        appendMsg('bot', `Hi ${_chatUser.name}! I'm Ask StockWise.\n\nI can help you find fresh food across DC corner stores:\n- Check product availability and prices\n- Find which stores carry what you need\n- Get suggestions for alternatives\n- Check store locations by ward\n\nWhat are you looking for?`);
       }
     } catch (e) {
       document.getElementById('store-chips').innerHTML = '<span style="color:var(--red);font-size:0.7rem">Could not load store info</span>';

@@ -18,9 +18,13 @@
   </nav>
 
   <div class="container">
-    <div class="page-header">
-      <h1>Community Board</h1>
-      <p>Vote for what you want your corner store to stock. When enough people vote, DCCK delivers it.</p>
+    <div class="page-header page-header-split">
+      <div>
+        <p class="eyebrow">Community signal</p>
+        <h1>Vote demand into the ward map.</h1>
+        <p>Every vote helps stores and DCCK decide what to move or deliver next.</p>
+      </div>
+      <a href="/" class="btn btn-secondary">View ward map</a>
     </div>
 
     <!-- WARD FILTER -->
@@ -35,7 +39,7 @@
       <!-- VOTE RESULTS -->
       <div>
         <div class="section">
-          <h2 class="section-title">What Your Neighborhood Wants</h2>
+          <h2 class="section-title">Ward priority list</h2>
           <div id="voteList"></div>
         </div>
       </div>
@@ -43,7 +47,7 @@
       <!-- VOTE FORM + MARKETPLACE -->
       <div>
         <div class="section">
-          <h2 class="section-title">Cast Your Vote</h2>
+          <h2 class="section-title">Add demand</h2>
           <div class="card">
             <form id="voteForm">
               <div class="form-group">
@@ -68,8 +72,8 @@
         </div>
 
         <div class="section">
-          <h2 class="section-title">Marketplace — Discounted Stock</h2>
-          <p style="color:var(--text-secondary);margin-bottom:1rem;font-size:0.9rem">Stores with excess stock near expiry — grab a deal!</p>
+          <h2 class="section-title">Marketplace - Discounted Stock</h2>
+          <p style="color:var(--text-secondary);margin-bottom:1rem;font-size:0.9rem">Stores with excess stock near expiry - grab a deal!</p>
           <div id="marketplace"></div>
         </div>
       </div>

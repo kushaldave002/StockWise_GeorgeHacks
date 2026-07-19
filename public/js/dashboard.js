@@ -6,6 +6,10 @@ SW_Auth.injectNav('dashboard');
 const API = '';
 
 async function loadDashboard() {
+  if (window.StockWiseWardMap) {
+    StockWiseWardMap.load({ mapId: 'dashboardWardMap', compact: true });
+  }
+
   const [dashRes, demandRes] = await Promise.all([
     SW_Auth.authFetch(`${API}/api/dashboard`),
     SW_Auth.authFetch(`${API}/api/demand`)

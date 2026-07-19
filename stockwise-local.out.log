@@ -1,0 +1,21 @@
+Local MongoDB not found, starting in-memory server...
+Connected to MongoDB
+Database empty, running seed...
+Seeded 4 stores
+Seeded 193 sales
+Seeded 15 requests
+Seeded votes
+Seeded listings
+Seed complete!
+
+StockWise running at http://localhost:3015
+
+Database summary:
+  Stores: 4, Sales: 193, Requests: 15, Votes: 10
+
+Low stock alerts:
+  Ward 7 Corner Market: Yuca(8), Plantains(12), Whole Milk(10), Eggs (dozen)(8), Rice (5lb)(6)
+  MLK Fresh Stop: Collard Greens(10), Sweet Potatoes(14), Cabbage(6), Plantains(5), Whole Milk(8), Cheese Slices(10), Bread (whole wheat)(7), Pinto Beans (can)(12)
+  H Street Mini Mart: Avocados(12), Cilantro(8), Jalapeños(10), Yuca(6), Mangoes(10), Eggs (dozen)(6), Corn Tortillas(12), Rice (5lb)(8)
+  Congress Heights Grocery: Kale(8), Carrots (1lb)(12), Potatoes (5lb)(6), Apples(10), Green Peppers(9), Yogurt(10), Butter(6), Oatmeal(8)
+

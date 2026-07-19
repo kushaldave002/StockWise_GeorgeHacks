@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>StockWise - Connecting DC Communities to Fresh Food</title>
+  <title>StockWise - DC Food Demand Routing</title>
   <link href="https://cdn.jsdelivr.net/npm/@fontsource/cascadia-code@latest/index.css" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
   <script src="/js/auth.js?v=4"></script>
@@ -18,75 +18,67 @@
     </div>
   </nav>
 
-  <div class="hero">
-    <h1>Fresh Food for <span>Every Corner</span></h1>
-    <p>Connecting DC neighborhoods to affordable, healthy food through their local corner stores. Powered by community demand.</p>
-    <div class="hero-actions">
-      <a href="/customer" class="btn btn-primary btn-large">Find Fresh Food Near You</a>
-      <a href="/community" class="btn btn-secondary btn-large">Vote for What You Need</a>
-    </div>
-  </div>
-
-  <div class="container">
-    <div class="section">
-      <h2 class="section-title">How It Works</h2>
-      <div class="card-grid">
-        <div class="card feature-card">
-          <div class="icon">1</div>
-          <h3>Search & Request</h3>
-          <p>Looking for yuca? Plantains? Search what's in stock at your nearest corner store, or request it and we'll get it to you.</p>
-        </div>
-        <div class="card feature-card">
-          <div class="icon">2</div>
-          <h3>Community Voice</h3>
-          <p>Vote for what your neighborhood needs. When enough people want something, stores and DCCK make it happen.</p>
-        </div>
-        <div class="card feature-card">
-          <div class="icon">3</div>
-          <h3>Store Owners</h3>
-          <p>Track sales, list excess stock before it spoils, and see what your community actually wants to buy.</p>
-        </div>
-        <div class="card feature-card">
-          <div class="icon">4</div>
-          <h3>Smart Supply</h3>
-          <p>DCCK sees real demand data from every ward. They deliver what people are actually asking for.</p>
+  <main class="demo-shell">
+    <section class="demo-hero">
+      <div class="demo-copy">
+        <p class="eyebrow">GeorgeHacks 2026 / DC food access</p>
+        <h1>Route fresh food where DC actually needs it.</h1>
+        <p class="hero-lede">StockWise turns corner-store inventory, resident requests, SNAP activity, and community votes into ward-level action for stores and DCCK.</p>
+        <div class="hero-actions">
+          <a href="/customer" class="btn btn-primary btn-large">Find food</a>
+          <a href="/tablet" class="btn btn-secondary btn-large">Record store activity</a>
+          <a href="/dashboard" class="btn btn-secondary btn-large">Open command view</a>
         </div>
       </div>
-    </div>
-
-    <div class="section">
-      <h2 class="section-title">The Problem We're Solving</h2>
-      <div class="two-col">
-        <div class="card">
-          <h3 style="color:var(--red);margin-bottom:0.5rem">Food Deserts in DC</h3>
-          <p style="color:var(--text-secondary)">Over 33% of residents in Wards 7 and 8 live more than a mile from a full-service grocery store. Corner stores are their lifeline -- but they can't stock fresh food without knowing there's demand.</p>
-        </div>
-        <div class="card">
-          <h3 style="color:var(--accent);margin-bottom:0.5rem">StockWise Closes the Gap</h3>
-          <p style="color:var(--text-secondary)">We aggregate real demand from residents, connect it to store inventory and DCCK's supply chain, and make sure the right food gets to the right neighborhood. SNAP-friendly, community-driven.</p>
+      <div class="hero-proof">
+        <div class="ops-stat-grid" id="homeStats">
+          <div class="ops-stat"><span>--</span><strong>available items</strong></div>
+          <div class="ops-stat"><span>--</span><strong>open requests</strong></div>
+          <div class="ops-stat"><span>--</span><strong>SNAP sales tracked</strong></div>
+          <div class="ops-stat"><span>--</span><strong>priority wards</strong></div>
         </div>
       </div>
-    </div>
+    </section>
 
-    <div class="section" style="text-align:center;padding:2rem 0">
-      <h2 class="section-title" style="border:none;text-align:center">Need Help Finding Something?</h2>
-      <p style="color:var(--text-secondary);margin-bottom:1rem">Ask our AI assistant about product availability, prices, and store locations across DC.</p>
-      <a href="/chatbot" class="btn btn-primary btn-large">Chat with StockWise AI</a>
-    </div>
+    <section class="ops-section">
+      <div class="section-heading-row">
+        <div>
+          <p class="eyebrow">Ward Demand Map</p>
+          <h2>Inventory pressure, transfer paths, and DCCK priorities in one view.</h2>
+        </div>
+        <a href="/community" class="btn btn-secondary">Add community demand</a>
+      </div>
+      <div id="homeWardMap" class="ward-map-shell">
+        <div class="map-loading">Loading ward demand...</div>
+      </div>
+    </section>
 
-    <div class="section" style="text-align:center;padding:2rem 0">
-      <h2 class="section-title" style="border:none;text-align:center">For DCCK & Partners</h2>
-      <p style="color:var(--text-secondary);margin-bottom:1rem">Real-time dashboard showing demand signals, sales data, and SNAP utilization across every ward.</p>
-      <a href="/dashboard" class="btn btn-primary btn-large">Open DCCK Dashboard</a>
-    </div>
-  </div>
+    <section class="ops-section workflow-strip">
+      <article>
+        <span>01</span>
+        <h3>Search</h3>
+        <p>Residents see pickup, transfer, or request paths without guessing which store has stock.</p>
+      </article>
+      <article>
+        <span>02</span>
+        <h3>Signal</h3>
+        <p>Requests and votes become ward-level demand instead of isolated forms.</p>
+      </article>
+      <article>
+        <span>03</span>
+        <h3>Move</h3>
+        <p>Stores and DCCK see what to transfer, reorder, or deliver next.</p>
+      </article>
+    </section>
+  </main>
 
-  <footer style="background:var(--surface);border-top:1px solid var(--border);color:var(--text-muted);text-align:center;padding:1.5rem;font-size:0.75rem">
-    StockWise &mdash; George Hacks 2026 &mdash; Building the Corner Store of the Future
+  <footer class="site-footer">
+    StockWise / Demand routing for DC corner stores
   </footer>
-<script>
-  // Inject user chip into nav (public page — no auth required)
-  SW_Auth.injectNav('');
-</script>
+  <script src="/js/ward-map.js"></script>
+  <script>
+    SW_Auth.injectNav('');
+    StockWiseWardMap.load({ mapId: 'homeWardMap', statId: 'homeStats' });
+  </script>
 </body>
 </html>

@@ -34,6 +34,18 @@
       <div class="stat-card"><div class="spinner"></div></div>
     </div>
 
+    <div class="section">
+      <div class="section-heading-row">
+        <div>
+          <p class="eyebrow">Command view</p>
+          <h2 class="section-title">Ward Demand Map</h2>
+        </div>
+        <a href="/community" class="btn btn-secondary">Review community demand</a>
+      </div>
+      <div id="dashboardWardMap" class="ward-map-shell">
+        <div class="map-loading">Loading ward demand...</div>
+      </div>
+    </div>
     <!-- CHARTS -->
     <div class="two-col" style="margin-bottom:2rem">
       <div class="chart-container">
@@ -75,6 +87,7 @@
     </div>
   </div>
 
+  <script src="/js/ward-map.js"></script>
   <script src="/js/dashboard.js"></script>
 </body>
 </html>
