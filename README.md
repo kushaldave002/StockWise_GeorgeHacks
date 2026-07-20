@@ -407,7 +407,7 @@ DC Central Kitchen (DCCK) Healthy Corners Program challenge to leverage technolo
 
 ## Team
 
-Built with care by the **StockWise** team at George Hacks 2026.
+Built by a team, including Kushal Dave (ME), at George Hacks 2026 (36-hour hackathon). This repo is forked from the team's original (bhushan7322/StockWise_GeorgeHacks).
 
 ---
 
